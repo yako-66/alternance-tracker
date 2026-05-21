@@ -48,8 +48,8 @@ export default function Candidatures({ navigate }) {
     if (!form.entreprise.trim()) return;
     if (editing) await api.put(`/api/candidatures/${editing.id}`, form);
     else await api.post('/api/candidatures', form);
-    setShowModal(false); load();
     showToast(editing ? '✅ Candidature modifiée !' : '✅ Candidature ajoutée !');
+    setShowModal(false); load();
   };
 
   const del = async (id, e) => {
