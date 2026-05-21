@@ -49,7 +49,8 @@ export default function Candidatures({ navigate }) {
     if (editing) await api.put(`/api/candidatures/${editing.id}`, form);
     else await api.post('/api/candidatures', form);
     showToast(editing ? '✅ Candidature modifiée !' : '✅ Candidature ajoutée !');
-    setShowModal(false); load();
+    setTimeout(() => setShowModal(false), 500);
+    load();
   };
 
   const del = async (id, e) => {
