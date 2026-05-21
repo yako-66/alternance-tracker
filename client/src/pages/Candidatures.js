@@ -3,6 +3,47 @@ import { api } from '../hooks/api';
 import Modal from '../components/Modal';
 import './Candidatures.css';
 
+const geoCache = new Map();
+
+function MiniMap({ localisation }) {
+  const [url, setUrl] = useState(() => geoCache.get(localisation) || null);
+
+  useEffect(() => {
+    if (!localisation || geoCache.has(localisation)) {
+      if (geoCache.has(localisation)) setUrl(geoCache.get(localisation));
+      return;
+    }
+    fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(localisation)}&format=json&limit=1`)
+      .then(r => r.json())
+      .then(data => {
+        if (data?.[0]) {
+          const la = parseFloat(data[0].lat), lo = parseFloat(data[0].lon), z = 0.1;
+          const built = `https://www.openstreetmap.org/export/embed.html?bbox=${lo-z},${la-z},${lo+z},${la+z}&layer=mapnik&marker=${la},${lo}`;
+          geoCache.set(localisation, built);
+          setUrl(built);
+        } else {
+          geoCache.set(localisation, '');
+        }
+      })
+      .catch(() => {});
+  }, [localisation]);
+
+  if (!url) return <div className="cand-map-loading">📍</div>;
+
+  return (
+    <div className="cand-map" onClick={e => e.stopPropagation()}>
+      <iframe
+        title={`Carte ${localisation}`}
+        src={url}
+        className="cand-map-iframe"
+        loading="lazy"
+        scrolling="no"
+        tabIndex="-1"
+      />
+    </div>
+  );
+}
+
 const STATUTS = ['Postulé','En attente','En attente de réponse','Entretien','Refus','Sans suite'];
 const STATUT_COLORS = {
   'Postulé':'#4ecdc4','En attente':'#ff9f43','En attente de réponse':'#ffd93d',
@@ -112,6 +153,7 @@ export default function Candidatures({ navigate }) {
                     </div>
                   </div>
                 </div>
+                {c.localisation && <MiniMap localisation={c.localisation} />}
                 <div className="cand-right">
                   <select
                     className="statut-select"
