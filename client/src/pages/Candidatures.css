@@ -1,4 +1,4 @@
-.cand-page { display:flex; flex-direction:column; gap:22px; animation:fadeInUp 0.3s ease both; }
+.cand-page { display:flex; flex-direction:column; gap:22px; animation:fadeIn 0.25s ease both; }
 
 .cand-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
 .cand-header-right { display:flex; align-items:center; gap:10px; }

@@ -5,12 +5,9 @@
   position:sticky; top:0; z-index:100;
   display:flex; align-items:center; justify-content:space-between;
   padding:0 32px; height:64px;
-  background:rgba(255,255,255,0.85);
-  backdrop-filter:blur(24px);
-  -webkit-backdrop-filter:blur(24px);
+  background:#FFFFFF;
   border-bottom:1px solid var(--border);
   box-shadow:0 1px 0 rgba(0,0,0,0.04), 0 4px 16px rgba(124,58,237,0.06);
-  animation:slideDown 0.4s ease both;
 }
 
 .nav-brand { display:flex; align-items:center; gap:10px; cursor:pointer; }
