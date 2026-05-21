@@ -1,108 +1,211 @@
 .cand-page { display:flex; flex-direction:column; gap:22px; }
+
 .cand-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
 .cand-header-right { display:flex; align-items:center; gap:10px; }
-.page-title { font-family:var(--font-display); font-size:28px; font-weight:700; letter-spacing:-0.02em; display:flex; align-items:center; gap:12px; }
-.count-badge { font-size:13px; background:var(--bg3); color:var(--muted); padding:3px 12px; border-radius:20px; font-family:var(--font-body); font-weight:500; border:1px solid var(--border); }
 
-.view-toggle { display:flex; background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:3px; gap:2px; }
-.view-btn { background:none; border:none; color:var(--muted); padding:7px 16px; border-radius:9px; font-size:13px; font-weight:500; transition:all 0.15s; }
-.view-btn.active { background:var(--bg4); color:var(--text); font-weight:600; }
+/* page-title & count-badge come from App.css */
 
-.btn-primary {
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  border: none; color: white; padding: 11px 24px; border-radius: 100px;
-  font-size: 14px; font-weight: 600;
-  box-shadow: 0 4px 20px rgba(123,111,255,0.3);
-  transition: transform 0.2s, box-shadow 0.2s;
+/* ── View Toggle ── */
+.view-toggle {
+  display:flex; align-items:center; gap:2px;
+  background:var(--bg2); padding:3px;
+  border-radius:var(--radius-full); border:1px solid var(--border);
 }
-.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(123,111,255,0.4); }
+.view-btn {
+  padding:6px 15px; border-radius:var(--radius-full);
+  font-size:0.8rem; font-weight:500; color:var(--text2);
+  background:transparent; border:none; cursor:pointer; transition:var(--t);
+}
+.view-btn.active { background:var(--surface); color:var(--purple); font-weight:600; box-shadow:var(--shadow-sm); }
+.view-btn:hover:not(.active) { color:var(--purple); background:rgba(124,58,237,0.05); }
 
-.filters { display:flex; gap:12px; }
-.search-input { flex:1; }
-.filter-select { width:190px; flex-shrink:0; }
+/* ── Filters ── */
+.filters { display:flex; gap:12px; flex-wrap:wrap; }
 
-/* LIST */
+.search-input {
+  flex:1; min-width:220px;
+  padding:10px 16px 10px 38px;
+  background:var(--surface);
+  border:1.5px solid var(--border2);
+  border-radius:var(--radius-full);
+  font-size:0.875rem; color:var(--text);
+  box-shadow:var(--shadow-xs);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' fill='%239CA3AF' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.099zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:13px center;
+}
+
+.filter-select {
+  width:190px; flex-shrink:0;
+  padding:10px 32px 10px 14px;
+  background:var(--surface);
+  border:1.5px solid var(--border2);
+  border-radius:var(--radius-full);
+  font-size:0.875rem; cursor:pointer;
+  box-shadow:var(--shadow-xs);
+  appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' fill='%239CA3AF' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:calc(100% - 12px) center;
+}
+
+/* ── List ── */
 .cand-list { display:flex; flex-direction:column; gap:8px; }
+
 .cand-card {
   display:flex; align-items:center; justify-content:space-between;
-  background:var(--bg2); border:1px solid var(--border);
-  border-radius:var(--radius); padding:16px 20px; cursor:pointer;
-  transition:border-color 0.2s, transform 0.15s, box-shadow 0.2s; gap:16px;
-  position: relative; overflow: hidden;
+  background:var(--surface); border:1px solid var(--border2);
+  border-radius:var(--radius-sm); padding:14px 18px;
+  cursor:pointer; gap:16px; position:relative; overflow:hidden;
+  box-shadow:var(--shadow-xs);
+  transition:transform var(--t), box-shadow var(--t), border-color var(--t);
+  animation:fadeInUp 0.3s both;
 }
+
+/* animated left accent */
 .cand-card::before {
-  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  opacity: 0; transition: opacity 0.2s;
-  border-radius: 3px 0 0 3px;
+  content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
+  background:var(--gradient);
+  transform:scaleY(0); transform-origin:bottom;
+  transition:transform var(--t); border-radius:3px 0 0 3px;
 }
-.cand-card:hover { border-color:rgba(123,111,255,0.3); transform:translateY(-1px); box-shadow:0 4px 20px rgba(0,0,0,0.2); }
-.cand-card:hover::before { opacity: 1; }
-.cand-card.urgent { border-color:rgba(255,85,85,0.2); }
-.cand-card.urgent::before { background: var(--red); opacity: 1; }
+.cand-card:hover { transform:translateY(-2px); box-shadow:var(--shadow-md); border-color:rgba(124,58,237,0.15); }
+.cand-card:hover::before { transform:scaleY(1); }
+
+.cand-card.urgent { border-color:rgba(239,68,68,0.18); background:linear-gradient(135deg,#FEF2F2,var(--surface)); }
+.cand-card.urgent::before { background:var(--red); transform:scaleY(1); }
 
 .cand-left { display:flex; align-items:center; gap:14px; flex:1; min-width:0; }
+
 .cand-avatar {
-  width:44px; height:44px; border-radius:13px; flex-shrink:0;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  width:44px; height:44px; border-radius:12px; flex-shrink:0;
+  background:var(--gradient);
   display:flex; align-items:center; justify-content:center;
-  font-family:var(--font-display); font-weight:700; font-size:18px; color:white;
+  font-family:var(--font-display); font-weight:700; font-size:1.1rem; color:white;
+  box-shadow:var(--shadow-sm);
+  transition:var(--t-spring);
 }
-.cand-entreprise { font-size:15px; font-weight:600; display:flex; align-items:center; gap:8px; }
-.urgent-badge { font-size:10px; background:rgba(255,85,85,0.15); color:var(--red); padding:2px 8px; border-radius:20px; font-weight:700; }
-.cand-poste { font-size:13px; color:var(--muted2); margin-top:2px; }
-.cand-meta { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
-.cand-meta span { font-size:11px; color:var(--muted); background:var(--bg3); padding:2px 8px; border-radius:6px; border:1px solid var(--border); }
+.cand-card:hover .cand-avatar { transform:scale(1.1) rotate(-5deg); box-shadow:var(--shadow-purple); }
 
-.cand-right { display:flex; align-items:center; gap:10px; flex-shrink:0; }
-.statut-select { width:auto; padding:6px 10px; font-size:12px; font-weight:600; border-radius:20px; cursor:pointer; }
-.cand-actions { display:flex; gap:2px; }
-.icon-btn { background:none; border:none; font-size:14px; padding:7px 8px; border-radius:8px; transition:background 0.15s; color:var(--muted); }
-.icon-btn:hover { background:var(--bg3); color:var(--text); }
+.cand-entreprise { font-size:0.9rem; font-weight:700; color:var(--text); display:flex; align-items:center; gap:8px; }
 
-.empty { text-align:center; padding:80px; color:var(--muted); font-size:15px; }
+.urgent-badge {
+  font-size:0.68rem; font-weight:700;
+  background:var(--red-bg); color:var(--red);
+  padding:2px 8px; border-radius:var(--radius-full);
+  border:1px solid rgba(239,68,68,0.2);
+  animation:pulse 2s ease infinite;
+}
 
-/* KANBAN */
-.kanban { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; overflow-x:auto; padding-bottom:8px; }
-.kanban-col { min-width:185px; background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:16px; }
-.kanban-col-header { display:flex; align-items:center; gap:8px; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--border); }
+.cand-poste { font-size:0.8rem; color:var(--text2); margin-top:2px; }
+
+.cand-meta { display:flex; gap:6px; margin-top:5px; flex-wrap:wrap; }
+.cand-meta span {
+  font-size:0.72rem; color:var(--muted);
+  background:var(--bg); padding:2px 8px;
+  border-radius:6px; border:1px solid var(--border2);
+  display:flex; align-items:center; gap:3px;
+}
+
+.cand-right { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+
+.statut-select {
+  width:auto; padding:5px 26px 5px 10px;
+  font-size:0.75rem; font-weight:600;
+  border-radius:var(--radius-full); cursor:pointer;
+  background:transparent; border:1.5px solid currentColor;
+  appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9' fill='currentColor' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:calc(100% - 8px) center;
+  opacity:0.75; transition:opacity var(--t);
+}
+.statut-select:hover { opacity:1; }
+
+.cand-actions { display:flex; gap:3px; opacity:0; transition:opacity var(--t); }
+.cand-card:hover .cand-actions { opacity:1; }
+
+.icon-btn {
+  width:32px; height:32px;
+  display:flex; align-items:center; justify-content:center;
+  border-radius:var(--radius-xs); font-size:0.85rem;
+  background:var(--bg2); border:1px solid var(--border);
+  color:var(--text2); cursor:pointer;
+  transition:var(--t-spring);
+}
+.icon-btn:hover { transform:scale(1.12); background:var(--purple-pale); border-color:rgba(124,58,237,0.2); color:var(--purple); }
+
+.empty { text-align:center; padding:70px 20px; color:var(--muted); font-size:0.9rem; }
+
+/* ── Kanban ── */
+.kanban { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; align-items:start; }
+
+.kanban-col {
+  background:var(--surface); border:1px solid var(--border2);
+  border-radius:var(--radius); overflow:hidden;
+  box-shadow:var(--shadow-xs); transition:box-shadow var(--t);
+  min-width:160px;
+}
+.kanban-col:hover { box-shadow:var(--shadow-sm); }
+
+.kanban-col-header {
+  display:flex; align-items:center; gap:8px;
+  padding:13px 13px 10px;
+  border-bottom:1px solid var(--border2);
+}
 .kanban-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-.kanban-col-title { font-size:12px; font-weight:600; flex:1; color:var(--muted2); }
-.kanban-count { font-size:11px; color:var(--muted); background:var(--bg3); padding:2px 8px; border-radius:12px; font-weight:600; }
-.kanban-cards { display:flex; flex-direction:column; gap:8px; }
-.kanban-card {
-  background:var(--bg3); border:1px solid var(--border); border-radius:12px;
-  padding:14px; cursor:pointer; transition:border-color 0.2s, transform 0.15s;
+.kanban-col-title { font-size:0.75rem; font-weight:600; color:var(--text2); flex:1; }
+.kanban-count {
+  min-width:20px; height:20px; padding:0 5px;
+  background:var(--bg2); border-radius:var(--radius-full);
+  font-size:0.68rem; font-weight:700; color:var(--text2);
+  display:flex; align-items:center; justify-content:center;
 }
-.kanban-card:hover { border-color:rgba(123,111,255,0.3); transform:translateY(-1px); }
-.kanban-avatar { width:28px; height:28px; border-radius:8px; margin-bottom:8px; background:linear-gradient(135deg,var(--accent),var(--accent2)); display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-weight:700; font-size:12px; color:white; }
-.kanban-entreprise { font-size:13px; font-weight:600; margin-bottom:3px; }
-.kanban-poste { font-size:11px; color:var(--muted2); margin-bottom:4px; line-height:1.4; }
-.kanban-loc, .kanban-date { font-size:10px; color:var(--muted); margin-top:3px; }
-.kanban-empty { font-size:12px; color:var(--muted); text-align:center; padding:24px 0; }
 
-/* FORM */
-.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-.form-group { display:flex; flex-direction:column; gap:6px; }
+.kanban-cards { padding:8px; display:flex; flex-direction:column; gap:6px; min-height:56px; }
+
+.kanban-card {
+  padding:12px; background:var(--bg);
+  border-radius:var(--radius-sm); border:1px solid var(--border2);
+  cursor:pointer; transition:all var(--t);
+}
+.kanban-card:hover { transform:translateY(-2px); box-shadow:var(--shadow-sm); background:var(--surface); border-color:rgba(124,58,237,0.15); }
+
+.kanban-avatar {
+  width:28px; height:28px; border-radius:7px;
+  background:var(--gradient); color:white;
+  font-family:var(--font-display); font-weight:700; font-size:0.8rem;
+  display:flex; align-items:center; justify-content:center;
+  margin-bottom:7px;
+}
+.kanban-entreprise { font-size:0.78rem; font-weight:700; color:var(--text); margin-bottom:2px; }
+.kanban-poste { font-size:0.7rem; color:var(--text2); margin-bottom:3px; line-height:1.4; }
+.kanban-loc, .kanban-date { font-size:0.68rem; color:var(--muted); margin-top:2px; }
+.kanban-empty { font-size:0.72rem; color:var(--muted2); text-align:center; padding:14px 8px; }
+
+/* ── Form ── */
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.form-group { display:flex; flex-direction:column; gap:5px; }
 .form-group.full { grid-column:1/-1; }
-.form-group label { font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; }
+.form-group label { font-size:0.75rem; font-weight:600; color:var(--text2); letter-spacing:0.01em; }
 
-/* TOAST */
+/* ── Toast ── */
 .toast {
   position:fixed; bottom:90px; left:50%; transform:translateX(-50%);
-  background:var(--bg4); border:1px solid var(--border2); color:var(--text);
-  padding:12px 24px; border-radius:100px; font-size:14px; font-weight:500;
-  z-index:9999; box-shadow:0 8px 32px rgba(0,0,0,0.4); white-space:nowrap;
-  animation:toastIn 0.3s ease;
+  background:var(--text); color:white;
+  padding:11px 22px; border-radius:var(--radius-full);
+  font-size:0.875rem; font-weight:500;
+  z-index:9999; box-shadow:var(--shadow-lg); white-space:nowrap;
+  animation:toastIn 0.3s var(--t-spring);
+  display:flex; align-items:center; gap:8px;
 }
-@keyframes toastIn { from{opacity:0;transform:translateX(-50%) translateY(10px);}to{opacity:1;transform:translateX(-50%) translateY(0);} }
 
-@media (max-width:600px) {
+/* ── Responsive ── */
+@media (max-width:1200px) { .kanban { grid-template-columns:repeat(3,1fr); } }
+@media (max-width:700px) {
+  .kanban { grid-template-columns:repeat(2,1fr); }
+  .form-grid { grid-template-columns:1fr; }
   .cand-card { flex-direction:column; align-items:flex-start; }
   .cand-right { width:100%; justify-content:space-between; }
   .filters { flex-direction:column; }
   .filter-select { width:100%; }
-  .form-grid { grid-template-columns:1fr; }
-  .kanban { grid-template-columns:repeat(3,180px); }
   .cand-header-right { width:100%; justify-content:space-between; }
+  .cand-actions { opacity:1; }
 }
