@@ -12,7 +12,7 @@ export default function Modal({ title, children, onClose, onSave }) {
         <div className="modal-body">{children}</div>
         <div className="modal-footer">
           <button className="btn-ghost" onClick={onClose}>Annuler</button>
-          <button className="btn-primary-sm" onClick={onSave} style={{padding:'10px 24px', fontSize:'14px'}}>Sauvegarder</button>
+          <button className="btn-save" onClick={onSave}>💾 Sauvegarder</button>
         </div>
       </div>
     </div>

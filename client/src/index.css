@@ -1,35 +1,36 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Bricolage+Grotesque:wght@400;500;600;700;800&display=swap');
+
 :root {
-  --bg: #080810;
-  --bg2: #0f0f1a;
-  --bg3: #16162a;
-  --bg4: #1c1c30;
-  --border: #ffffff0f;
-  --border2: #ffffff18;
-  --text: #f0f0fa;
-  --muted: #6b6b90;
-  --muted2: #9090b0;
-  --accent: #7c6bff;
-  --accent2: #ff6b8a;
-  --accent3: #00d4a0;
-  --green: #00d4a0;
-  --orange: #ff9f43;
-  --red: #ff6b6b;
-  --blue: #4ecdc4;
-  --yellow: #ffd93d;
-  --grey: #4a4a60;
-  --font-display: 'Clash Display', 'Syne', sans-serif;
-  --font-body: 'DM Sans', sans-serif;
+  --bg: #FAFAFA;
+  --bg2: #FFFFFF;
+  --bg3: #F4F4F6;
+  --bg4: #EBEBED;
+  --border: #E8E8EC;
+  --border2: #D8D8DE;
+  --text: #0A0A12;
+  --muted: #8A8A9A;
+  --muted2: #5A5A6A;
+  --accent: #5B4FE8;
+  --accent2: #E84F7A;
+  --accent3: #00C48C;
+  --green: #00C48C;
+  --orange: #FF8C42;
+  --red: #E84F4F;
+  --blue: #4F9BE8;
+  --yellow: #F5C842;
+  --grey: #9A9AA8;
+  --font-display: 'Bricolage Grotesque', sans-serif;
+  --font-body: 'Plus Jakarta Sans', sans-serif;
   --radius: 16px;
   --radius-sm: 10px;
-  --shadow: 0 8px 32px rgba(0,0,0,0.5);
-  --shadow-lg: 0 24px 64px rgba(0,0,0,0.6);
-  --glow: 0 0 40px rgba(124,107,255,0.15);
+  --shadow: 0 2px 12px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 24px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,0.12);
 }
 
 html { font-size: 16px; }
-
 body {
   background: var(--bg);
   color: var(--text);
@@ -38,19 +39,17 @@ body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
 }
-
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
-
 button { cursor: pointer; font-family: var(--font-body); }
 input, textarea, select {
   font-family: var(--font-body);
   background: var(--bg3);
-  border: 1px solid var(--border2);
+  border: 1.5px solid var(--border);
   color: var(--text);
   border-radius: var(--radius-sm);
-  padding: 12px 16px;
+  padding: 11px 16px;
   font-size: 14px;
   width: 100%;
   outline: none;
@@ -58,8 +57,7 @@ input, textarea, select {
 }
 input:focus, textarea:focus, select:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(124,107,255,0.1);
+  box-shadow: 0 0 0 3px rgba(91,79,232,0.1);
+  background: var(--bg2);
 }
-select option { background: var(--bg3); }
-
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
+select option { background: var(--bg2); }
