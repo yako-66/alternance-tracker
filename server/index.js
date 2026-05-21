@@ -10,32 +10,26 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../client/build')));
 
-// Init DB avant de servir
-app.use(async (req, res, next) => {
-  await getDb();
-  next();
-});
+app.use(async (req, res, next) => { await getDb(); next(); });
 
-// ── CANDIDATURES ──────────────────────────────────────────────────────────
 app.get('/api/candidatures', (req, res) => {
   res.json(query('SELECT * FROM candidatures ORDER BY id DESC', []));
 });
 
 app.post('/api/candidatures', (req, res) => {
-  const { entreprise, poste, source, date_candidature, contact, statut, notes } = req.body;
+  const { entreprise, poste, source, date_candidature, contact, statut, notes, localisation } = req.body;
   const result = run(
-    'INSERT INTO candidatures (entreprise,poste,source,date_candidature,contact,statut,notes) VALUES (?,?,?,?,?,?,?)',
-    [entreprise, poste||'', source||'', date_candidature||'', contact||'', statut||'Postulé', notes||'']
+    'INSERT INTO candidatures (entreprise,poste,source,date_candidature,contact,statut,notes,localisation) VALUES (?,?,?,?,?,?,?,?)',
+    [entreprise, poste||'', source||'', date_candidature||'', contact||'', statut||'Postulé', notes||'', localisation||'']
   );
-  const rows = query('SELECT * FROM candidatures WHERE id = ?', [result.lastInsertRowid]);
-  res.json(rows[0]);
+  res.json(query('SELECT * FROM candidatures WHERE id = ?', [result.lastInsertRowid])[0]);
 });
 
 app.put('/api/candidatures/:id', (req, res) => {
-  const { entreprise, poste, source, date_candidature, contact, statut, notes } = req.body;
+  const { entreprise, poste, source, date_candidature, contact, statut, notes, localisation } = req.body;
   run(
-    'UPDATE candidatures SET entreprise=?,poste=?,source=?,date_candidature=?,contact=?,statut=?,notes=? WHERE id=?',
-    [entreprise, poste, source, date_candidature, contact, statut, notes, parseInt(req.params.id)]
+    'UPDATE candidatures SET entreprise=?,poste=?,source=?,date_candidature=?,contact=?,statut=?,notes=?,localisation=? WHERE id=?',
+    [entreprise, poste||'', source||'', date_candidature||'', contact||'', statut, notes||'', localisation||'', parseInt(req.params.id)]
   );
   res.json(query('SELECT * FROM candidatures WHERE id=?', [parseInt(req.params.id)])[0]);
 });
@@ -46,7 +40,6 @@ app.delete('/api/candidatures/:id', (req, res) => {
   res.json({ success: true });
 });
 
-// ── ÉCHANGES ──────────────────────────────────────────────────────────────
 app.get('/api/candidatures/:id/echanges', (req, res) => {
   res.json(query('SELECT * FROM echanges WHERE candidature_id=? ORDER BY id DESC', [parseInt(req.params.id)]));
 });
@@ -65,7 +58,6 @@ app.delete('/api/echanges/:id', (req, res) => {
   res.json({ success: true });
 });
 
-// ── STATS ──────────────────────────────────────────────────────────────────
 app.get('/api/stats', (req, res) => {
   const total = query('SELECT COUNT(*) as count FROM candidatures')[0]?.count || 0;
   const byStatut = query('SELECT statut, COUNT(*) as count FROM candidatures GROUP BY statut');

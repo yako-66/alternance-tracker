@@ -26,6 +26,7 @@ async function getDb() {
       contact TEXT,
       statut TEXT DEFAULT 'Postulé',
       notes TEXT,
+    localisation TEXT DEFAULT '',
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
@@ -81,7 +82,8 @@ async function getDb() {
       ['OPUS RS','Technicien Sys & Réseaux','LinkedIn (InMail)','20/05/2026','Yorick Georges','En attente de réponse','À confirmer : alternance ou CDI ?'],
     ];
     companies.forEach(c => {
-      db.run(`INSERT INTO candidatures (entreprise,poste,source,date_candidature,contact,statut,notes) VALUES (?,?,?,?,?,?,?)`, c);
+      if (c.length === 7) c.push('');
+      db.run(`INSERT INTO candidatures (entreprise,poste,source,date_candidature,contact,statut,notes,localisation) VALUES (?,?,?,?,?,?,?,?)`, c);
     });
     save();
   }

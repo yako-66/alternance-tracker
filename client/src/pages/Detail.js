@@ -5,7 +5,7 @@ import './Detail.css';
 const STATUTS = ['Postulé','En attente','En attente de réponse','Entretien','Refus','Sans suite'];
 const STATUT_COLORS = {
   'Postulé':'#4ecdc4','En attente':'#ff9f43','En attente de réponse':'#ffd93d',
-  'Entretien':'#00d4a0','Refus':'#ff6b6b','Sans suite':'#6b6b80'
+  'Entretien':'#00d4a0','Refus':'#ff6b6b','Sans suite':'#4a4a60'
 };
 const TYPES_ECHANGE = ['Email reçu','Email envoyé','Appel téléphonique','Message LinkedIn','Entretien','Relance','Note'];
 
@@ -16,6 +16,9 @@ export default function Detail({ id, navigate }) {
   const [form, setForm] = useState({});
   const [newEchange, setNewEchange] = useState({ type:'Email reçu', contenu:'', date: new Date().toISOString().split('T')[0] });
   const [showEchangeForm, setShowEchangeForm] = useState(false);
+  const [toast, setToast] = useState('');
+
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
   const load = async () => {
     const all = await api.get('/api/candidatures');
@@ -29,14 +32,14 @@ export default function Detail({ id, navigate }) {
 
   const save = async () => {
     await api.put(`/api/candidatures/${id}`, form);
-    setEditing(false); load();
+    setEditing(false); load(); showToast('✅ Modifié !');
   };
 
   const addEchange = async () => {
     if (!newEchange.contenu.trim()) return;
     await api.post(`/api/candidatures/${id}/echanges`, newEchange);
     setNewEchange({ type:'Email reçu', contenu:'', date: new Date().toISOString().split('T')[0] });
-    setShowEchangeForm(false); load();
+    setShowEchangeForm(false); load(); showToast('✅ Échange ajouté !');
   };
 
   const delEchange = async (eid) => {
@@ -56,6 +59,7 @@ export default function Detail({ id, navigate }) {
         <div className="detail-info">
           <h1 className="detail-entreprise">{cand.entreprise}</h1>
           <p className="detail-poste">{cand.poste}</p>
+          {cand.localisation && <p className="detail-loc">📍 {cand.localisation}</p>}
         </div>
         <span className="badge-lg" style={{background: STATUT_COLORS[cand.statut]+'22', color: STATUT_COLORS[cand.statut]}}>
           {cand.statut}
@@ -70,19 +74,23 @@ export default function Detail({ id, navigate }) {
               ? <button className="btn-ghost" onClick={() => setEditing(true)}>✏️ Modifier</button>
               : <div style={{display:'flex',gap:8}}>
                   <button className="btn-ghost" onClick={() => setEditing(false)}>Annuler</button>
-                  <button className="btn-primary-sm" onClick={save}>Sauvegarder</button>
+                  <button className="btn-save" onClick={save}>Sauvegarder</button>
                 </div>
             }
           </div>
 
           {editing ? (
             <div className="edit-form">
-              {[['Entreprise','entreprise'],['Poste','poste'],['Source','source'],['Date','date_candidature'],['Contact','contact']].map(([label, key]) => (
+              {[['Entreprise','entreprise'],['Poste','poste'],['Localisation','localisation'],['Source','source'],['Contact','contact']].map(([label, key]) => (
                 <div className="form-group" key={key}>
                   <label>{label}</label>
-                  <input value={form[key]||''} onChange={e => setForm({...form,[key]:e.target.value})} type={key==='date_candidature'?'date':'text'} />
+                  <input value={form[key]||''} onChange={e => setForm({...form,[key]:e.target.value})} />
                 </div>
               ))}
+              <div className="form-group">
+                <label>Date</label>
+                <input type="date" value={form.date_candidature||''} onChange={e => setForm({...form,date_candidature:e.target.value})} />
+              </div>
               <div className="form-group">
                 <label>Statut</label>
                 <select value={form.statut} onChange={e => setForm({...form,statut:e.target.value})}>
@@ -96,7 +104,7 @@ export default function Detail({ id, navigate }) {
             </div>
           ) : (
             <div className="info-list">
-              {[['📍 Source', cand.source],['📅 Date', cand.date_candidature],['👤 Contact', cand.contact]].map(([label, val]) => val ? (
+              {[['📍 Localisation', cand.localisation],['🔗 Source', cand.source],['📅 Date', cand.date_candidature],['👤 Contact', cand.contact]].map(([label, val]) => val ? (
                 <div className="info-row" key={label}>
                   <span className="info-label">{label}</span>
                   <span className="info-val">{val}</span>
@@ -136,7 +144,7 @@ export default function Detail({ id, navigate }) {
               </div>
               <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
                 <button className="btn-ghost" onClick={() => setShowEchangeForm(false)}>Annuler</button>
-                <button className="btn-primary-sm" onClick={addEchange}>Ajouter</button>
+                <button className="btn-save" onClick={addEchange}>Ajouter</button>
               </div>
             </div>
           )}
@@ -159,6 +167,8 @@ export default function Detail({ id, navigate }) {
           </div>
         </div>
       </div>
+
+      {toast && <div className="toast">{toast}</div>}
     </div>
   );
 }
