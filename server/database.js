@@ -43,50 +43,74 @@ async function getDb() {
   // Seed si vide
   const count = db.exec('SELECT COUNT(*) as c FROM candidatures')[0]?.values[0][0] || 0;
   if (count === 0) {
+    // [entreprise, poste, source, date, contact, statut, notes, localisation]
     const companies = [
-      ['SNCF','Alternant Infra/Cloud','Candidature directe','','','Postulé',''],
-      ['XEFI','Alternant Systèmes & Réseaux','Candidature directe','','','Postulé',''],
-      ['APTIS','Alternant Infra','Candidature directe','','','Postulé',''],
-      ['SODIAAL','Alternant IT','Candidature directe','','','Postulé',''],
-      ['APRIL','Alternant Systèmes','Candidature directe','','','Postulé',''],
-      ['ENEDIS','Alternant Infra & Cloud','Candidature directe','','','Postulé',''],
-      ['Groupe APICIL','Alternant IT','Candidature directe','','','Postulé',''],
-      ['FRAMATOME','Alternant Systèmes & Réseaux','Candidature directe','','','Postulé',''],
-      ['Early Makers','Alternant IT','Candidature directe','','','Postulé',''],
-      ['Banque Populaire','Alternant Infra','Candidature directe','','','Postulé',''],
-      ['Crédit Agricole','Alternant Cloud','Candidature directe','','','Postulé',''],
-      ['EDF','Alternant Systèmes','Candidature directe','','','Postulé',''],
-      ['ORT Lyon','Alternant IT','Candidature directe','','','Postulé',''],
-      ['SFR','Alternant Infra','Candidature directe','','','Postulé',''],
-      ['ALPTIS','Alternant Systèmes & Réseaux','Candidature directe','','','Postulé',''],
-      ['CAPGEMINI','Alternant Cloud / Infra','Candidature directe','','','Postulé',''],
-      ['STEF','Alternant IT','Candidature directe','','','Postulé',''],
-      ['CERFRANCE','Alternant Systèmes','Candidature directe','','','Postulé',''],
-      ['CLUB MED','Alternant Infra','Candidature directe','','','Postulé',''],
-      ['FIDUCIAL','Alternant IT','Candidature directe','','','Postulé',''],
-      ['LYNX','Alternant Systèmes & Réseaux','Cabinet recrutement','','','Postulé',''],
-      ['METSYS','Alternant Cloud / Infra','Candidature directe','','','Postulé',''],
-      ['GAC Software','Alternant IT','Candidature directe','','','Postulé',''],
-      ['GUARANI','Alternant Systèmes','Candidature directe','','','Postulé',''],
-      ['Genius Talent','Alternant Infra','Cabinet recrutement','','','Postulé',''],
-      ['SAYCO','Alternant IT','Candidature directe','','','Postulé',''],
-      ['Réseau Talents','Alternant Systèmes & Réseaux','Cabinet recrutement','','','Postulé',''],
-      ['SILKHOM','Alternant Cloud / Infra','Cabinet recrutement','','','Postulé',''],
-      ['IKIGAI','Alternant IT','Cabinet recrutement','','','Postulé',''],
-      ['AQUISIT','Alternant Systèmes','Cabinet recrutement','','','Postulé',''],
-      ['XBHOST','Alternant Infra & Cloud','Candidature directe','','','Postulé',''],
-      ['SKILLIE','Alternant IT','Cabinet recrutement','','','Postulé',''],
-      ['DIMEO ENERGIE','Alternant Systèmes & Réseaux','Candidature directe','','','Postulé',''],
-      ['EDILIANS','Alternant Technicien Sys & Réseaux','IPI Lyon','20/05/2026','Mme Juen','En attente','Quincieux (69) — 29 pers DSI, missions N2/N3'],
-      ['ACTEMIUM / VINCI','Alternant Administrateur IT','HelloWork','20/05/2026','','Postulé','Oullins (69) — VINCI Energies'],
-      ['OPUS RS','Technicien Sys & Réseaux','LinkedIn (InMail)','20/05/2026','Yorick Georges','En attente de réponse','À confirmer : alternance ou CDI ?'],
+      ['SNCF','Alternant Infra/Cloud','Candidature directe','','','Postulé','','Lyon'],
+      ['XEFI','Alternant Systèmes & Réseaux','Candidature directe','','','Postulé','','Lyon'],
+      ['APTIS','Alternant Infra','Candidature directe','','','Postulé','','Lyon'],
+      ['SODIAAL','Alternant IT','Candidature directe','','','Postulé','','Lyon'],
+      ['APRIL','Alternant Systèmes','Candidature directe','','','Postulé','','Lyon'],
+      ['ENEDIS','Alternant Infra & Cloud','Candidature directe','','','Postulé','','Lyon'],
+      ['Groupe APICIL','Alternant IT','Candidature directe','','','Postulé','','Lyon'],
+      ['FRAMATOME','Alternant Systèmes & Réseaux','Candidature directe','','','Postulé','','Lyon'],
+      ['Early Makers','Alternant IT','Candidature directe','','','Postulé','','Lyon'],
+      ['Banque Populaire','Alternant Infra','Candidature directe','','','Postulé','','Lyon'],
+      ['Crédit Agricole','Alternant Cloud','Candidature directe','','','Postulé','','Lyon'],
+      ['EDF','Alternant Systèmes','Candidature directe','','','Postulé','','Lyon'],
+      ['ORT Lyon','Alternant IT','Candidature directe','','','Postulé','','Lyon'],
+      ['SFR','Alternant Infra','Candidature directe','','','Postulé','','Lyon'],
+      ['ALPTIS','Alternant Systèmes & Réseaux','Candidature directe','','','Postulé','','Rillieux-la-Pape'],
+      ['CAPGEMINI','Alternant Cloud / Infra','Candidature directe','','','Postulé','','Lyon'],
+      ['STEF','Alternant IT','Candidature directe','','','Postulé','','Lyon'],
+      ['CERFRANCE','Alternant Systèmes','Candidature directe','','','Postulé','','Lyon'],
+      ['CLUB MED','Alternant Infra','Candidature directe','','','Postulé','','Paris'],
+      ['FIDUCIAL','Alternant IT','Candidature directe','','','Postulé','','Lyon'],
+      ['LYNX','Alternant Systèmes & Réseaux','Cabinet recrutement','','','Postulé','','Lyon'],
+      ['METSYS','Alternant Cloud / Infra','Candidature directe','','','Postulé','','Lyon'],
+      ['GAC Software','Alternant IT','Candidature directe','','','Postulé','','Lyon'],
+      ['GUARANI','Alternant Systèmes','Candidature directe','','','Postulé','','Lyon'],
+      ['Genius Talent','Alternant Infra','Cabinet recrutement','','','Postulé','','Lyon'],
+      ['SAYCO','Alternant IT','Candidature directe','','','Postulé','','Lyon'],
+      ['Réseau Talents','Alternant Systèmes & Réseaux','Cabinet recrutement','','','Postulé','','Lyon'],
+      ['SILKHOM','Alternant Cloud / Infra','Cabinet recrutement','','','Postulé','','Lyon'],
+      ['IKIGAI','Alternant IT','Cabinet recrutement','','','Postulé','','Lyon'],
+      ['AQUISIT','Alternant Systèmes','Cabinet recrutement','','','Postulé','','Lyon'],
+      ['XBHOST','Alternant Infra & Cloud','Candidature directe','','','Postulé','','Lyon'],
+      ['SKILLIE','Alternant IT','Cabinet recrutement','','','Postulé','','Lyon'],
+      ['DIMEO ENERGIE','Alternant Systèmes & Réseaux','Candidature directe','','','Postulé','','Lyon'],
+      ['EDILIANS','Alternant Technicien Sys & Réseaux','IPI Lyon','20/05/2026','Mme Juen','En attente','Quincieux (69) — 29 pers DSI, missions N2/N3','Quincieux'],
+      ['ACTEMIUM / VINCI','Alternant Administrateur IT','HelloWork','20/05/2026','','Postulé','Oullins (69) — VINCI Energies','Oullins'],
+      ['OPUS RS','Technicien Sys & Réseaux','LinkedIn (InMail)','20/05/2026','Yorick Georges','En attente de réponse','À confirmer : alternance ou CDI ?','Lyon'],
     ];
     companies.forEach(c => {
-      if (c.length === 7) c.push('');
       db.run(`INSERT INTO candidatures (entreprise,poste,source,date_candidature,contact,statut,notes,localisation) VALUES (?,?,?,?,?,?,?,?)`, c);
     });
     save();
   }
+
+  // Migration : renseigne localisation pour les entrées existantes qui l'ont vide
+  const migrations = [
+    ['SNCF','Lyon'],['XEFI','Lyon'],['APTIS','Lyon'],['SODIAAL','Lyon'],
+    ['APRIL','Lyon'],['ENEDIS','Lyon'],['Groupe APICIL','Lyon'],['FRAMATOME','Lyon'],
+    ['Early Makers','Lyon'],['Banque Populaire','Lyon'],['Crédit Agricole','Lyon'],
+    ['EDF','Lyon'],['ORT Lyon','Lyon'],['SFR','Lyon'],['CAPGEMINI','Lyon'],
+    ['STEF','Lyon'],['CERFRANCE','Lyon'],['FIDUCIAL','Lyon'],['LYNX','Lyon'],
+    ['METSYS','Lyon'],['GAC Software','Lyon'],['GUARANI','Lyon'],
+    ['Genius Talent','Lyon'],['SAYCO','Lyon'],['Réseau Talents','Lyon'],
+    ['SILKHOM','Lyon'],['IKIGAI','Lyon'],['AQUISIT','Lyon'],['XBHOST','Lyon'],
+    ['SKILLIE','Lyon'],['DIMEO ENERGIE','Lyon'],['ALPTIS','Rillieux-la-Pape'],
+    ['CLUB MED','Paris'],['EDILIANS','Quincieux'],['ACTEMIUM / VINCI','Oullins'],
+    ['OPUS RS','Lyon'],
+  ];
+  let migrated = 0;
+  migrations.forEach(([entreprise, loc]) => {
+    const res = db.exec(`SELECT id FROM candidatures WHERE entreprise='${entreprise.replace(/'/g,"''")}' AND (localisation IS NULL OR localisation='')`);
+    if (res[0]?.values?.length) {
+      db.run(`UPDATE candidatures SET localisation='${loc}' WHERE entreprise='${entreprise.replace(/'/g,"''")}'  AND (localisation IS NULL OR localisation='')`);
+      migrated++;
+    }
+  });
+  if (migrated > 0) save();
 
   return db;
 }
