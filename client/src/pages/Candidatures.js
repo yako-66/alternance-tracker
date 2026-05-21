@@ -18,9 +18,15 @@ export default function Candidatures({ navigate }) {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(empty);
+  const [toast, setToast] = useState('');
 
   const load = () => api.get('/api/candidatures').then(setList);
   useEffect(() => { load(); }, []);
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 3000);
+  };
 
   const filtered = list.filter(c => {
     const q = search.toLowerCase();
@@ -36,13 +42,17 @@ export default function Candidatures({ navigate }) {
     if (!form.entreprise.trim()) return;
     if (editing) await api.put(`/api/candidatures/${editing.id}`, form);
     else await api.post('/api/candidatures', form);
-    setShowModal(false); load();
+    setShowModal(false);
+    load();
+    showToast(editing ? '✅ Candidature modifiée !' : '✅ Candidature ajoutée !');
   };
 
   const del = async (id, e) => {
     e.stopPropagation();
     if (window.confirm('Supprimer cette candidature ?')) {
-      await api.delete(`/api/candidatures/${id}`); load();
+      await api.delete(`/api/candidatures/${id}`);
+      load();
+      showToast('🗑️ Candidature supprimée');
     }
   };
 
@@ -51,6 +61,7 @@ export default function Candidatures({ navigate }) {
     const c = list.find(x => x.id === id);
     await api.put(`/api/candidatures/${id}`, {...c, statut});
     load();
+    showToast(`📌 Statut mis à jour : ${statut}`);
   };
 
   return (
@@ -138,6 +149,18 @@ export default function Candidatures({ navigate }) {
             </div>
           </div>
         </Modal>
+      )}
+
+      {toast && (
+        <div style={{
+          position:'fixed', bottom:'90px', left:'50%', transform:'translateX(-50%)',
+          background:'#1a1a24', border:'1px solid #2a2a38', color:'#e8e8f0',
+          padding:'12px 24px', borderRadius:'100px', fontSize:'14px', fontWeight:'500',
+          zIndex:9999, boxShadow:'0 8px 32px rgba(0,0,0,0.4)',
+          whiteSpace:'nowrap'
+        }}>
+          {toast}
+        </div>
       )}
     </div>
   );
