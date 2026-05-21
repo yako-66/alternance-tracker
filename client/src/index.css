@@ -1,33 +1,31 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Bricolage+Grotesque:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
 :root {
-  --bg: #FAFAFA;
-  --bg2: #FFFFFF;
-  --bg3: #F4F4F6;
-  --bg4: #EBEBED;
-  --border: #E8E8EC;
-  --border2: #D8D8DE;
-  --text: #0A0A12;
-  --muted: #8A8A9A;
-  --muted2: #5A5A6A;
-  --accent: #5B4FE8;
-  --accent2: #E84F7A;
-  --accent3: #00C48C;
-  --green: #00C48C;
+  --bg: #0D0D14;
+  --bg2: #13131F;
+  --bg3: #1A1A28;
+  --bg4: #21213A;
+  --border: rgba(255,255,255,0.06);
+  --border2: rgba(255,255,255,0.1);
+  --text: #F2F2FF;
+  --muted: #6E6E9A;
+  --muted2: #9898B8;
+  --accent: #7B6FFF;
+  --accent2: #FF6B9D;
+  --green: #00E5A0;
   --orange: #FF8C42;
-  --red: #E84F4F;
-  --blue: #4F9BE8;
-  --yellow: #F5C842;
-  --grey: #9A9AA8;
-  --font-display: 'Bricolage Grotesque', sans-serif;
-  --font-body: 'Plus Jakarta Sans', sans-serif;
-  --radius: 16px;
-  --radius-sm: 10px;
-  --shadow: 0 2px 12px rgba(0,0,0,0.06);
-  --shadow-md: 0 4px 24px rgba(0,0,0,0.08);
-  --shadow-lg: 0 8px 40px rgba(0,0,0,0.12);
+  --red: #FF5555;
+  --blue: #55AAFF;
+  --yellow: #FFD166;
+  --pink: #FF6B9D;
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --radius: 20px;
+  --radius-sm: 12px;
+  --glow-purple: 0 0 40px rgba(123,111,255,0.2);
+  --glow-pink: 0 0 40px rgba(255,107,157,0.15);
 }
 
 html { font-size: 16px; }
@@ -35,29 +33,42 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-body);
-  font-weight: 400;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
+
+/* Grille de fond subtile */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background-image: 
+    linear-gradient(rgba(123,111,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(123,111,255,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
+
 button { cursor: pointer; font-family: var(--font-body); }
 input, textarea, select {
   font-family: var(--font-body);
   background: var(--bg3);
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border2);
   color: var(--text);
   border-radius: var(--radius-sm);
-  padding: 11px 16px;
+  padding: 12px 16px;
   font-size: 14px;
   width: 100%;
   outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
 }
 input:focus, textarea:focus, select:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(91,79,232,0.1);
-  background: var(--bg2);
+  box-shadow: 0 0 0 3px rgba(123,111,255,0.15);
+  background: var(--bg4);
 }
-select option { background: var(--bg2); }
+select option { background: var(--bg3); color: var(--text); }
