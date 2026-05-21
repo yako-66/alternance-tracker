@@ -1,4 +1,4 @@
-.stats-page { display:flex; flex-direction:column; gap:28px; }
+.stats-page { display:flex; flex-direction:column; gap:28px; animation:fadeInUp 0.3s ease both; }
 
 .loading { display:flex; justify-content:center; padding:80px; }
 .spinner { width:36px;height:36px;border:3px solid var(--bg2);border-top-color:var(--purple);border-radius:50%;animation:spin 0.75s linear infinite; }

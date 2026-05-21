@@ -9,7 +9,7 @@
 }
 
 /* ── Dashboard ── */
-.dashboard { display:flex; flex-direction:column; gap:28px; }
+.dashboard { display:flex; flex-direction:column; gap:28px; animation:fadeInUp 0.3s ease both; }
 
 .dash-header { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:16px; }
 
