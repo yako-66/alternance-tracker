@@ -69,6 +69,8 @@ export default function Candidatures({ navigate }) {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(empty);
   const [toast, setToast] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [savedOk, setSavedOk] = useState(false);
 
   const load = () => api.get('/api/candidatures').then(setList);
   useEffect(() => { load(); }, []);
@@ -87,11 +89,21 @@ export default function Candidatures({ navigate }) {
 
   const save = async () => {
     if (!form.entreprise.trim()) return;
-    if (editing) await api.put(`/api/candidatures/${editing.id}`, form);
-    else await api.post('/api/candidatures', form);
-    showToast(editing ? '✅ Candidature modifiée !' : '✅ Candidature ajoutée !');
-    setTimeout(() => setShowModal(false), 500);
-    load();
+    setSaving(true);
+    try {
+      if (editing) await api.put(`/api/candidatures/${editing.id}`, form);
+      else await api.post('/api/candidatures', form);
+      setSaving(false);
+      setSavedOk(true);
+      load();
+      setTimeout(() => {
+        setShowModal(false);
+        setSavedOk(false);
+        showToast(editing ? '✅ Candidature modifiée !' : '✅ Candidature ajoutée !');
+      }, 900);
+    } catch {
+      setSaving(false);
+    }
   };
 
   const del = async (id, e) => {
@@ -204,7 +216,7 @@ export default function Candidatures({ navigate }) {
       )}
 
       {showModal && (
-        <Modal title={editing ? 'Modifier la candidature' : 'Nouvelle candidature'} onClose={() => setShowModal(false)} onSave={save}>
+        <Modal title={editing ? 'Modifier la candidature' : 'Nouvelle candidature'} onClose={() => setShowModal(false)} onSave={save} saving={saving} savedOk={savedOk}>
           <div className="form-grid">
             <div className="form-group full">
               <label>Entreprise *</label>

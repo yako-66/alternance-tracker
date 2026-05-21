@@ -82,3 +82,14 @@
 }
 .modal-footer .btn-save:hover { transform:translateY(-2px) scale(1.02); box-shadow:0 12px 32px rgba(124,58,237,0.38); }
 .modal-footer .btn-save:active { transform:scale(0.97); }
+
+.modal-footer .btn-save.btn-save-ok {
+  background: linear-gradient(135deg, #10B981, #059669);
+  box-shadow: 0 6px 24px rgba(16,185,129,0.35);
+  transform: scale(1.03);
+}
+
+.modal-footer .btn-save:disabled {
+  cursor: not-allowed;
+  opacity: 0.85;
+}
