@@ -60,6 +60,9 @@ body {
   box-shadow: var(--shadow-purple); padding: 14px 28px; font-size: 1rem;
 }
 .btn-hero:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 16px 40px rgba(124,58,237,0.4); }
+.btn-hero-secondary { background: transparent; color: var(--purple); border: 2px solid var(--purple); padding: 14px 28px; font-size: 1rem; }
+.btn-hero-secondary:hover { background: rgba(124,58,237,0.1); transform: translateY(-1px); }
+.hero-cta-group { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; animation: fadeInUp 0.5s 0.3s ease both; margin-bottom: 12px; }
 .btn-outline {
   background: var(--surface); color: var(--purple);
   border: 2px solid rgba(124,58,237,0.3); width: 100%; margin-top: auto;
