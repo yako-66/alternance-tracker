@@ -32,8 +32,6 @@
 .stats-kpi-num {
   font-family:var(--font-display);
   font-size:2.6rem; font-weight:800; letter-spacing:-0.03em; line-height:1;
-  background:var(--gradient-text);
-  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
   margin-bottom:6px;
 }
 .stats-kpi-label { font-size:0.82rem; font-weight:600; color:var(--text2); }
@@ -95,6 +93,46 @@
 
 .bar-count { font-size:0.78rem; font-weight:700; color:var(--text); min-width:24px; text-align:right; }
 
+/* ── Weekly Chart ── */
+.weekly-chart {
+  display:flex; align-items:stretch; gap:6px;
+  height:180px; padding-top:22px;
+}
+
+.weekly-col {
+  flex:1; display:flex; flex-direction:column; align-items:center;
+  gap:4px; position:relative;
+}
+
+.weekly-count-label {
+  font-size:0.68rem; font-weight:700; color:var(--text2);
+  position:absolute; top:-18px; left:50%; transform:translateX(-50%);
+  white-space:nowrap;
+}
+
+.weekly-bar-wrap {
+  width:100%; flex:1; position:relative;
+  background:var(--bg2); border-radius:6px 6px 0 0; overflow:hidden;
+  display:flex; flex-direction:column; justify-content:flex-end;
+}
+
+.weekly-bar {
+  width:100%; border-radius:6px 6px 0 0;
+  background:linear-gradient(180deg, var(--accent), var(--accent2));
+  transition:height 0.7s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+.weekly-col-current .weekly-bar {
+  background:linear-gradient(180deg, var(--green), #34D399);
+  box-shadow:0 -4px 12px rgba(16,185,129,0.3);
+}
+
+.weekly-label {
+  font-size:0.6rem; color:var(--muted); white-space:nowrap; text-align:center;
+  flex-shrink:0;
+}
+.weekly-col-current .weekly-label { color:var(--green); font-weight:700; }
+
 /* ── Funnel ── */
 .funnel { display:flex; flex-direction:column; gap:16px; }
 
@@ -104,6 +142,90 @@
 .funnel-info { display:flex; justify-content:space-between; align-items:center; }
 .funnel-label { font-size:0.82rem; color:var(--text2); font-weight:500; }
 .funnel-count { font-size:1rem; font-weight:800; color:var(--text); font-family:var(--font-display); }
+
+/* ── Day of Week Chart ── */
+.dayweek-chart {
+  display:flex; align-items:stretch; gap:8px; height:160px; padding-top:22px;
+}
+
+.dayweek-col {
+  flex:1; display:flex; flex-direction:column; align-items:center;
+  gap:5px; position:relative;
+}
+
+.dayweek-count {
+  font-size:0.7rem; font-weight:700; color:var(--text2);
+  position:absolute; top:-18px; left:50%; transform:translateX(-50%);
+}
+
+.dayweek-bar-wrap {
+  width:100%; flex:1; position:relative;
+  background:var(--bg2); border-radius:6px 6px 0 0; overflow:hidden;
+  display:flex; flex-direction:column; justify-content:flex-end;
+}
+
+.dayweek-bar {
+  width:100%; border-radius:6px 6px 0 0;
+  background:linear-gradient(180deg, var(--blue), #6366F1);
+  transition:height 0.7s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+.dayweek-top .dayweek-bar {
+  background:linear-gradient(180deg, var(--accent), var(--accent2));
+  box-shadow:0 -4px 12px rgba(124,58,237,0.3);
+}
+
+.dayweek-label {
+  font-size:0.7rem; color:var(--muted); text-align:center; flex-shrink:0;
+}
+.dayweek-top .dayweek-label { color:var(--accent); font-weight:700; }
+
+/* ── Score distribution ── */
+.score-dist { display:flex; flex-direction:column; gap:10px; }
+
+.score-dist-row { display:flex; align-items:center; gap:10px; }
+
+.score-dist-stars {
+  font-size:0.8rem; min-width:80px; letter-spacing:1px;
+  color:#F59E0B;
+}
+
+.score-dist-bar-wrap {
+  flex:1; height:8px; background:var(--bg2); border-radius:99px; overflow:hidden;
+}
+.score-dist-bar {
+  height:100%; border-radius:99px;
+  background:linear-gradient(90deg,#F59E0B,#FCD34D);
+  animation:barGrow 0.8s ease both;
+  transition:width 0.6s cubic-bezier(0.4,0,0.2,1);
+  min-width:4px;
+}
+
+.score-dist-count {
+  font-size:0.8rem; font-weight:700; color:var(--text); min-width:24px; text-align:right;
+}
+
+.score-dist-unrated {
+  font-size:0.75rem; color:var(--muted);
+  padding-top:6px; border-top:1px solid var(--border2);
+  margin-top:4px; text-align:right;
+}
+
+/* ── Dark mode ── */
+[data-theme="dark"] .stats-kpi-card:hover { box-shadow:var(--shadow-md); }
+[data-theme="dark"] .bar-fill { background:linear-gradient(90deg,var(--accent),var(--accent2)); }
+[data-theme="dark"] .funnel-bar { background:linear-gradient(90deg,var(--accent),var(--accent2)); }
+[data-theme="dark"] .donut-svg { filter:drop-shadow(0 4px 12px rgba(124,58,237,0.12)); }
+[data-theme="dark"] .weekly-bar { background:linear-gradient(180deg,var(--accent),rgba(124,58,237,0.5)); }
+[data-theme="dark"] .weekly-col-current .weekly-bar {
+  background:linear-gradient(180deg,var(--green),rgba(16,185,129,0.4));
+  box-shadow:none;
+}
+[data-theme="dark"] .dayweek-bar { background:linear-gradient(180deg,var(--blue),rgba(59,130,246,0.4)); }
+[data-theme="dark"] .dayweek-top .dayweek-bar {
+  background:linear-gradient(180deg,var(--accent),rgba(124,58,237,0.4));
+  box-shadow:none;
+}
 
 /* ── Responsive ── */
 @media (max-width:900px) {

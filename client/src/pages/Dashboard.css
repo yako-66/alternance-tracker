@@ -84,6 +84,66 @@
 }
 .kpi-main .kpi-label { color:rgba(255,255,255,0.82); }
 
+/* ── Objectif hebdomadaire ── */
+.week-goal-card {
+  display:flex; align-items:center; gap:28px;
+  background:var(--surface); border:1px solid var(--border2);
+  border-radius:var(--radius); padding:22px 28px;
+  box-shadow:var(--shadow-xs);
+  transition:box-shadow var(--t), border-color var(--t);
+  animation:fadeInUp 0.5s 0.15s both;
+  position:relative; overflow:hidden;
+}
+.week-goal-card::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:3px;
+  background:var(--gradient); transform:scaleX(0); transform-origin:left; transition:transform var(--t);
+}
+.week-goal-card:hover { box-shadow:var(--shadow-md); border-color:var(--border); }
+.week-goal-card:hover::before { transform:scaleX(1); }
+.week-goal-card.week-goal-complete { border-color:rgba(16,185,129,0.2); background:linear-gradient(135deg,#F0FDF4,var(--surface)); }
+.week-goal-card.week-goal-complete::before { background:linear-gradient(90deg,var(--green),#34D399); transform:scaleX(1); }
+
+.week-goal-svg { width:100px; height:100px; flex-shrink:0; filter:drop-shadow(0 4px 12px rgba(124,58,237,0.18)); }
+.week-goal-card.week-goal-complete .week-goal-svg { filter:drop-shadow(0 4px 12px rgba(16,185,129,0.25)); }
+
+.week-goal-body { flex:1; display:flex; flex-direction:column; gap:5px; }
+.week-goal-title { font-family:var(--font-display); font-size:0.85rem; font-weight:700; color:var(--text2); text-transform:uppercase; letter-spacing:0.06em; }
+.week-goal-status { font-size:1.05rem; font-weight:700; color:var(--text); display:flex; align-items:center; gap:6px; }
+.week-goal-remaining { font-size:1.3rem; font-weight:800; color:var(--accent); font-family:var(--font-display); }
+.week-goal-ok { color:var(--green); font-size:1rem; }
+.week-goal-sub { font-size:0.75rem; color:var(--muted); }
+
+.week-goal-edit-row { display:flex; align-items:center; gap:6px; margin-top:4px; }
+.week-goal-input {
+  width:72px; padding:6px 10px; font-size:0.85rem;
+  border:1.5px solid var(--border); border-radius:var(--radius-sm);
+  background:var(--bg); color:var(--text);
+}
+.week-goal-confirm, .week-goal-cancel-btn {
+  width:30px; height:30px; border-radius:var(--radius-xs);
+  display:flex; align-items:center; justify-content:center;
+  font-size:0.85rem; font-weight:700; cursor:pointer; transition:var(--t);
+}
+.week-goal-confirm { background:var(--green); color:white; border:none; }
+.week-goal-confirm:hover { filter:brightness(1.1); transform:scale(1.08); }
+.week-goal-cancel-btn { background:var(--bg2); color:var(--muted); border:1px solid var(--border2); }
+.week-goal-cancel-btn:hover { background:var(--red-bg); color:var(--red); }
+
+.week-goal-edit-btn {
+  display:inline-flex; align-items:center; gap:5px;
+  font-size:0.75rem; font-weight:600; color:var(--muted);
+  background:transparent; border:none; cursor:pointer;
+  padding:4px 0; transition:color var(--t);
+  width:fit-content; margin-top:4px;
+}
+.week-goal-edit-btn:hover { color:var(--purple); }
+
+.week-goal-pct {
+  font-family:var(--font-display); font-size:2rem; font-weight:800;
+  letter-spacing:-0.04em; flex-shrink:0; min-width:68px; text-align:right;
+  transition:color 0.4s;
+}
+
 /* ── Relance Banner ── */
 .relance-banner {
   background:linear-gradient(135deg,#FFF7ED,#FFFBEB);
@@ -183,8 +243,138 @@
   white-space:nowrap; flex-shrink:0;
 }
 
+/* ── Countdown + Tip Grid ── */
+.dash-countdown-grid {
+  display:grid; grid-template-columns:1.6fr 1fr; gap:20px;
+}
+
+/* ── Countdown Card ── */
+.countdown-card {
+  background:var(--gradient);
+  border-radius:var(--radius); padding:24px 28px;
+  box-shadow:var(--shadow-purple);
+  animation:fadeInUp 0.5s 0.12s both;
+  position:relative; overflow:hidden;
+  display:flex; flex-direction:column; gap:14px;
+}
+.countdown-card::before {
+  content:''; position:absolute; top:-50%; right:-10%;
+  width:340px; height:340px;
+  background:radial-gradient(circle,rgba(255,255,255,0.1) 0%,transparent 70%);
+  pointer-events:none;
+}
+.countdown-card.countdown-urgent {
+  background:linear-gradient(135deg, #EF4444, #7C3AED);
+}
+
+.countdown-header {
+  display:flex; align-items:center; gap:14px; position:relative; z-index:1;
+}
+.countdown-icon { font-size:2rem; flex-shrink:0; }
+.countdown-title {
+  font-family:var(--font-display); font-size:1rem; font-weight:800;
+  color:white; letter-spacing:-0.02em;
+}
+.countdown-sub { font-size:0.75rem; color:rgba(255,255,255,0.72); margin-top:2px; }
+
+.countdown-nums {
+  display:flex; align-items:center; gap:16px; position:relative; z-index:1;
+}
+.countdown-sep { font-size:1.5rem; color:rgba(255,255,255,0.3); font-weight:300; }
+.countdown-block { display:flex; flex-direction:column; align-items:center; gap:1px; }
+.countdown-num {
+  font-family:var(--font-display); font-size:3rem; font-weight:800;
+  color:white; line-height:1; letter-spacing:-0.04em;
+}
+.countdown-unit { font-size:0.72rem; font-weight:600; color:rgba(255,255,255,0.7); text-transform:uppercase; letter-spacing:0.08em; }
+.countdown-unit-small { font-size:0.65rem; color:rgba(255,255,255,0.5); }
+
+.countdown-progress-label-top {
+  font-size:0.72rem; color:rgba(255,255,255,0.65); position:relative; z-index:1;
+}
+.countdown-progress-track {
+  width:100%; height:6px; background:rgba(255,255,255,0.15);
+  border-radius:99px; overflow:hidden; position:relative; z-index:1;
+}
+.countdown-progress-fill {
+  height:100%; border-radius:99px;
+  background:rgba(255,255,255,0.7);
+  transition:width 1s cubic-bezier(0.4,0,0.2,1);
+  position:relative;
+}
+.countdown-progress-fill::after {
+  content:''; position:absolute; right:0; top:50%;
+  transform:translateY(-50%);
+  width:8px; height:8px; border-radius:50%;
+  background:white;
+  box-shadow:0 0 6px rgba(255,255,255,0.8);
+}
+.countdown-progress-pct {
+  position:absolute; right:0; top:-18px;
+  font-size:0.7rem; font-weight:700; color:rgba(255,255,255,0.9);
+}
+
+/* ── Tip Card ── */
+.tip-card {
+  background:var(--surface); border:1px solid var(--border2);
+  border-radius:var(--radius); padding:24px;
+  box-shadow:var(--shadow-xs);
+  animation:fadeInUp 0.5s 0.18s both;
+  display:flex; flex-direction:column; gap:14px;
+  position:relative; overflow:hidden;
+}
+.tip-card::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:3px;
+  background:linear-gradient(90deg,var(--accent),var(--green));
+}
+
+.tip-motiv {
+  display:flex; align-items:center; gap:10px;
+}
+.tip-motiv-emoji { font-size:1.6rem; flex-shrink:0; }
+.tip-motiv-text {
+  font-family:var(--font-display); font-size:0.9rem; font-weight:700;
+  color:var(--text); line-height:1.3;
+}
+
+.tip-divider {
+  height:1px; background:var(--border2); margin:0 -4px;
+}
+
+.tip-label {
+  font-size:0.72rem; font-weight:700; color:var(--purple);
+  text-transform:uppercase; letter-spacing:0.08em;
+}
+.tip-text {
+  font-size:0.85rem; line-height:1.65; color:var(--text2);
+  font-style:italic;
+}
+
+/* ── Dark mode overrides ── */
+[data-theme="dark"] .relance-banner {
+  background: rgba(245,158,11,0.07);
+  border-color: rgba(245,158,11,0.18);
+  border-left-color: #F59E0B;
+}
+[data-theme="dark"] .relance-title { color: #FCD34D; }
+[data-theme="dark"] .relance-entreprise { color: #FDE68A; }
+[data-theme="dark"] .relance-days { color: #B45309; }
+[data-theme="dark"] .relance-item:hover { background: rgba(245,158,11,0.07); }
+[data-theme="dark"] .week-goal-card.week-goal-complete {
+  background: rgba(16,185,129,0.07);
+  border-color: rgba(16,185,129,0.2);
+}
+[data-theme="dark"] .recent-row.urgent { background: rgba(239,68,68,0.06); }
+
+[data-theme="dark"] .tip-card::before {
+  opacity:0.7;
+}
+
 /* ── Responsive ── */
-@media (max-width:1024px) { .kpi-grid { grid-template-columns:repeat(2,1fr); } }
+@media (max-width:1024px) {
+  .kpi-grid { grid-template-columns:repeat(2,1fr); }
+  .dash-countdown-grid { grid-template-columns:1fr; }
+}
 @media (max-width:900px)  { .dash-grid { grid-template-columns:1fr; } }
 @media (max-width:600px) {
   .dash-title { font-size:1.6rem; }
@@ -192,4 +382,9 @@
   .kpi-card { padding:16px 14px; }
   .kpi-num { font-size:2rem; }
   .statut-left { min-width:130px; }
+  .week-goal-card { flex-wrap:wrap; gap:16px; padding:18px 20px; }
+  .week-goal-svg { width:80px; height:80px; }
+  .week-goal-pct { font-size:1.5rem; min-width:auto; }
+  .countdown-num { font-size:2.2rem; }
+  .countdown-card { padding:20px; }
 }

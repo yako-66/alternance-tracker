@@ -88,6 +88,10 @@ async function getDb() {
     save();
   }
 
+  // Migrations : nouvelles colonnes
+  try { db.run('ALTER TABLE candidatures ADD COLUMN priorite INTEGER DEFAULT 0'); save(); } catch(e) {}
+  try { db.run('ALTER TABLE candidatures ADD COLUMN score INTEGER DEFAULT 0'); save(); } catch(e) {}
+
   // Migration : renseigne localisation pour les entrées existantes qui l'ont vide
   const migrations = [
     ['SNCF','Lyon'],['XEFI','Lyon'],['APTIS','Lyon'],['SODIAAL','Lyon'],

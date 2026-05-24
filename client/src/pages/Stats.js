@@ -1,6 +1,28 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../hooks/api';
 import './Stats.css';
+
+function useCountUp(target, duration = 900) {
+  const [count, setCount] = useState(0);
+  const prev = useRef(0);
+  useEffect(() => {
+    if (target === prev.current) return;
+    const start = Date.now();
+    const startVal = prev.current;
+    const delta = target - startVal;
+    if (delta === 0) return;
+    const frame = () => {
+      const elapsed = Date.now() - start;
+      const p = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setCount(parseFloat((startVal + eased * delta).toFixed(1)));
+      if (p < 1) requestAnimationFrame(frame);
+      else { setCount(target); prev.current = target; }
+    };
+    requestAnimationFrame(frame);
+  }, [target, duration]);
+  return count;
+}
 
 const STATUT_COLORS = {
   'Postulé':'#4ecdc4','En attente':'#ff9f43','En attente de réponse':'#ffd93d',
@@ -16,7 +38,7 @@ export default function Stats() {
     api.get('/api/stats').then(setStats);
   }, []);
 
-  if (!stats || !list.length) return <div className="loading"><div className="spinner" /></div>;
+  if (!stats) return <div className="loading"><div className="spinner" /></div>;
 
   // Stats par source
   const bySource = list.reduce((acc, c) => {
@@ -43,8 +65,49 @@ export default function Stats() {
     ? (((stats.total - (stats.byStatut.find(s => s.statut === 'Postulé')?.count || 0)) / stats.total) * 100).toFixed(1)
     : 0;
 
-  const maxSource = Math.max(...sourcesSorted.map(s => s[1]));
-  const maxLoc = Math.max(...locSorted.map(l => l[1]));
+  const maxSource = Math.max(...sourcesSorted.map(s => s[1]), 1);
+  const maxLoc = Math.max(...locSorted.map(l => l[1]), 1);
+
+  // Activité des 8 dernières semaines
+  const now = new Date();
+  const currentDayOfWeek = now.getDay() === 0 ? 7 : now.getDay();
+  const daysFromMonday = currentDayOfWeek - 1;
+  const weeklyData = Array.from({ length: 8 }, (_, i) => {
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - daysFromMonday - (7 - i) * 7);
+    monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+    const count = list.filter(c => {
+      if (!c.date_candidature) return false;
+      const parts = c.date_candidature.includes('/') ? c.date_candidature.split('/').reverse() : c.date_candidature.split('-');
+      const d = new Date(parts.join('-'));
+      return !isNaN(d) && d >= monday && d <= sunday;
+    }).length;
+    const isCurrent = i === 7;
+    const label = `${String(monday.getDate()).padStart(2,'0')}/${String(monday.getMonth()+1).padStart(2,'0')}`;
+    return { label, count, isCurrent };
+  });
+  const maxWeekly = Math.max(...weeklyData.map(w => w.count), 1);
+
+  // Heatmap jours de la semaine
+  const DAY_NAMES = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+  const byDay = [0,0,0,0,0,0,0];
+  list.forEach(c => {
+    if (!c.date_candidature) return;
+    const parts = c.date_candidature.includes('/') ? c.date_candidature.split('/').reverse() : c.date_candidature.split('-');
+    const d = new Date(parts.join('-'));
+    if (!isNaN(d)) { const idx = d.getDay() === 0 ? 6 : d.getDay() - 1; byDay[idx]++; }
+  });
+  const maxDay = Math.max(...byDay, 1);
+
+  // Score distribution
+  const scoreDist = [5,4,3,2,1].map(s => ({
+    star: s, count: list.filter(c => (c.score||0) === s).length
+  }));
+  const unratedCount = list.filter(c => !c.score || c.score === 0).length;
+  const maxScoreDist = Math.max(...scoreDist.map(s => s.count), 1);
 
   return (
     <div className="stats-page">
@@ -78,27 +141,29 @@ export default function Stats() {
           <h2 className="card-title">Répartition par statut</h2>
           <div className="donut-wrap">
             <svg viewBox="0 0 120 120" className="donut-svg">
-              {(() => {
-                let offset = 0;
-                const r = 45; const circ = 2 * Math.PI * r;
-                return stats.byStatut.filter(s => s.count > 0).map((s, i) => {
-                  const pct = s.count / stats.total;
-                  const dash = pct * circ;
-                  const el = (
-                    <circle key={s.statut} cx="60" cy="60" r={r}
-                      fill="none" strokeWidth="18"
-                      stroke={STATUT_COLORS[s.statut] || '#4a4a60'}
-                      strokeDasharray={`${dash} ${circ - dash}`}
-                      strokeDashoffset={-offset * circ / 360 * 360 + circ * 0.25}
-                      style={{transition:'all 0.5s'}}
-                    />
-                  );
-                  offset += pct * 360;
-                  return el;
-                });
-              })()}
-              <text x="60" y="56" textAnchor="middle" fill="white" fontSize="18" fontWeight="800" fontFamily="Syne">{stats.total}</text>
-              <text x="60" y="70" textAnchor="middle" fill="#6b6b90" fontSize="8">candidatures</text>
+              <g transform="rotate(-90 60 60)">
+                {(() => {
+                  let acc = 0;
+                  const r = 45; const circ = 2 * Math.PI * r;
+                  return stats.byStatut.filter(s => s.count > 0).map(s => {
+                    const pct = s.count / stats.total;
+                    const dash = pct * circ;
+                    const dashOffset = -(acc * circ);
+                    acc += pct;
+                    return (
+                      <circle key={s.statut} cx="60" cy="60" r={r}
+                        fill="none" strokeWidth="18"
+                        stroke={STATUT_COLORS[s.statut] || '#4a4a60'}
+                        strokeDasharray={`${dash} ${circ - dash}`}
+                        strokeDashoffset={dashOffset}
+                        style={{transition:'all 0.5s'}}
+                      />
+                    );
+                  });
+                })()}
+              </g>
+              <text x="60" y="56" textAnchor="middle" style={{fill:'var(--text)'}} fontSize="18" fontWeight="800" fontFamily="Space Grotesk">{stats.total}</text>
+              <text x="60" y="70" textAnchor="middle" style={{fill:'var(--muted)'}} fontSize="8">candidatures</text>
             </svg>
             <div className="donut-legend">
               {stats.byStatut.filter(s => s.count > 0).map(s => (
@@ -143,6 +208,24 @@ export default function Stats() {
         </div>
 
         <div className="card">
+          <h2 className="card-title">📅 Activité hebdomadaire</h2>
+          <div className="weekly-chart">
+            {weeklyData.map((w, i) => (
+              <div className={`weekly-col ${w.isCurrent ? 'weekly-col-current' : ''}`} key={i}>
+                {w.count > 0 && <div className="weekly-count-label">{w.count}</div>}
+                <div className="weekly-bar-wrap">
+                  <div
+                    className="weekly-bar"
+                    style={{height:`${Math.max((w.count / maxWeekly) * 100, w.count > 0 ? 8 : 0)}%`}}
+                  />
+                </div>
+                <div className="weekly-label">{w.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="card">
           <h2 className="card-title">Entonnoir de conversion</h2>
           <div className="funnel">
             {[
@@ -161,6 +244,49 @@ export default function Stats() {
               </div>
             ))}
           </div>
+        </div>
+        <div className="card">
+          <h2 className="card-title">📆 Jours les plus actifs</h2>
+          <div className="dayweek-chart">
+            {DAY_NAMES.map((day, i) => {
+              const count = byDay[i];
+              const pct = (count / maxDay) * 100;
+              const isTop = count === maxDay && count > 0;
+              return (
+                <div className={`dayweek-col ${isTop ? 'dayweek-top' : ''}`} key={day}>
+                  {count > 0 && <div className="dayweek-count">{count}</div>}
+                  <div className="dayweek-bar-wrap">
+                    <div className="dayweek-bar" style={{height:`${Math.max(pct, count > 0 ? 10 : 0)}%`}} />
+                  </div>
+                  <div className="dayweek-label">{day}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="card">
+          <h2 className="card-title">⭐ Distribution des scores</h2>
+          {scoreDist.every(s => s.count === 0) ? (
+            <p style={{color:'var(--muted)',fontSize:'0.85rem',textAlign:'center',padding:'24px 0'}}>
+              Note tes candidatures avec des étoiles pour voir la distribution ici.
+            </p>
+          ) : (
+            <div className="score-dist">
+              {scoreDist.map(({ star, count }) => (
+                <div className="score-dist-row" key={star}>
+                  <div className="score-dist-stars">{'★'.repeat(star)}{'☆'.repeat(5 - star)}</div>
+                  <div className="score-dist-bar-wrap">
+                    <div className="score-dist-bar" style={{width:`${(count / maxScoreDist) * 100}%`}} />
+                  </div>
+                  <div className="score-dist-count">{count}</div>
+                </div>
+              ))}
+              {unratedCount > 0 && (
+                <div className="score-dist-unrated">{unratedCount} non noté{unratedCount > 1 ? 'es' : 'e'}</div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

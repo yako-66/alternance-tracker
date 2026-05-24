@@ -17,19 +17,19 @@ app.get('/api/candidatures', (req, res) => {
 });
 
 app.post('/api/candidatures', (req, res) => {
-  const { entreprise, poste, source, date_candidature, contact, statut, notes, localisation } = req.body;
+  const { entreprise, poste, source, date_candidature, contact, statut, notes, localisation, priorite, score } = req.body;
   const result = run(
-    'INSERT INTO candidatures (entreprise,poste,source,date_candidature,contact,statut,notes,localisation) VALUES (?,?,?,?,?,?,?,?)',
-    [entreprise, poste||'', source||'', date_candidature||'', contact||'', statut||'Postulé', notes||'', localisation||'']
+    'INSERT INTO candidatures (entreprise,poste,source,date_candidature,contact,statut,notes,localisation,priorite,score) VALUES (?,?,?,?,?,?,?,?,?,?)',
+    [entreprise, poste||'', source||'', date_candidature||'', contact||'', statut||'Postulé', notes||'', localisation||'', priorite||0, score||0]
   );
   res.json(query('SELECT * FROM candidatures WHERE id = ?', [result.lastInsertRowid])[0]);
 });
 
 app.put('/api/candidatures/:id', (req, res) => {
-  const { entreprise, poste, source, date_candidature, contact, statut, notes, localisation } = req.body;
+  const { entreprise, poste, source, date_candidature, contact, statut, notes, localisation, priorite, score } = req.body;
   run(
-    'UPDATE candidatures SET entreprise=?,poste=?,source=?,date_candidature=?,contact=?,statut=?,notes=?,localisation=? WHERE id=?',
-    [entreprise, poste||'', source||'', date_candidature||'', contact||'', statut, notes||'', localisation||'', parseInt(req.params.id)]
+    'UPDATE candidatures SET entreprise=?,poste=?,source=?,date_candidature=?,contact=?,statut=?,notes=?,localisation=?,priorite=?,score=? WHERE id=?',
+    [entreprise, poste||'', source||'', date_candidature||'', contact||'', statut, notes||'', localisation||'', priorite||0, score||0, parseInt(req.params.id)]
   );
   res.json(query('SELECT * FROM candidatures WHERE id=?', [parseInt(req.params.id)])[0]);
 });

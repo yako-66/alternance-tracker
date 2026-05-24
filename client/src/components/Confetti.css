@@ -1,0 +1,22 @@
+.confetti-container {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 99999;
+}
+
+.confetti-piece {
+  position: absolute;
+  top: -30px;
+  border-radius: 2px;
+  animation-name: confettiFall, confettiWobble;
+  animation-iteration-count: 1, infinite;
+  animation-timing-function: ease-in, ease-in-out;
+  animation-fill-mode: forwards, none;
+  pointer-events: none;
+}
+
+.confetti-circle { border-radius: 50%; }
+.confetti-rect { border-radius: 1px; transform: rotate(45deg); }

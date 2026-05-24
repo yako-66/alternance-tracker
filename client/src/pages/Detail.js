@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { api } from '../hooks/api';
+import Confetti from '../components/Confetti';
 import './Detail.css';
 
 const STATUTS = ['Postulé','En attente','En attente de réponse','Entretien','Refus','Sans suite'];
@@ -32,12 +33,7 @@ function MapEmbed({ localisation }) {
 
   return (
     <div className="map-wrap">
-      <iframe
-        title="Localisation"
-        src={mapUrl}
-        className="map-iframe"
-        loading="lazy"
-      />
+      <iframe title="Localisation" src={mapUrl} className="map-iframe" loading="lazy" />
       <div className="map-label">📍 {coords?.display_name || localisation}</div>
     </div>
   );
@@ -45,7 +41,6 @@ function MapEmbed({ localisation }) {
 
 function CompanyLogo({ entreprise }) {
   const [logo, setLogo] = useState('');
-  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (!entreprise) return;
@@ -54,15 +49,35 @@ function CompanyLogo({ entreprise }) {
       .replace(/(sas|sarl|sa|srl|group|groupe|france)/g, '');
     const url = `https://logo.clearbit.com/${domain}.com`;
     const img = new Image();
-    img.onload = () => { setLogo(url); setLoaded(true); };
-    img.onerror = () => setLoaded(true);
+    img.onload = () => setLogo(url);
     img.src = url;
   }, [entreprise]);
 
   if (logo) return <img src={logo} alt={entreprise} className="company-logo" />;
+  return <div className="detail-avatar-fallback">{entreprise?.[0]?.toUpperCase()}</div>;
+}
+
+function StarRating({ value, onChange, readOnly = false }) {
+  const [hover, setHover] = useState(0);
+  const display = hover || value || 0;
   return (
-    <div className="detail-avatar-fallback">
-      {entreprise?.[0]?.toUpperCase()}
+    <div className={`star-rating-detail ${readOnly ? 'readonly' : ''}`}>
+      {[1,2,3,4,5].map(i => (
+        <button
+          key={i}
+          type="button"
+          className={`star-btn-detail ${i <= display ? 'on' : ''}`}
+          onMouseEnter={() => !readOnly && setHover(i)}
+          onMouseLeave={() => !readOnly && setHover(0)}
+          onClick={() => !readOnly && onChange && onChange(i === value ? 0 : i)}
+          tabIndex={readOnly ? -1 : 0}
+        >
+          {i <= display ? '★' : '☆'}
+        </button>
+      ))}
+      {!readOnly && value > 0 && (
+        <button className="star-clear-btn" onClick={() => onChange(0)} title="Effacer">×</button>
+      )}
     </div>
   );
 }
@@ -75,33 +90,66 @@ export default function Detail({ id, navigate }) {
   const [newEchange, setNewEchange] = useState({ type:'Email reçu', contenu:'', date:new Date().toISOString().split('T')[0] });
   const [showEchangeForm, setShowEchangeForm] = useState(false);
   const [toast, setToast] = useState('');
+  const [toastType, setToastType] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [confetti, setConfetti] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
+  const showToast = (msg, type = '') => {
+    setToast(msg);
+    setToastType(type);
+    setTimeout(() => setToast(''), 3500);
+  };
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const all = await api.get('/api/candidatures');
     const c = all.find(x => x.id === id);
     if (c) { setCand(c); setForm({...c}); }
     api.get(`/api/candidatures/${id}/echanges`).then(setEchanges);
-  };
+  }, [id]);
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => { load(); }, [load]);
 
   const save = async () => {
+    setSaving(true);
+    const prevStatut = cand?.statut;
     await api.put(`/api/candidatures/${id}`, form);
-    setEditing(false); load(); showToast('✅ Modifié avec succès !');
+    setSaving(false);
+    setEditing(false);
+    if (form.statut === 'Entretien' && prevStatut !== 'Entretien') {
+      setConfetti(true);
+      showToast('🎉 Entretien décroché ! Félicitations !', 'success');
+    } else {
+      showToast('✅ Modifié avec succès !');
+    }
+    load();
+  };
+
+  const togglePrio = async () => {
+    const newPrio = cand.priorite ? 0 : 1;
+    await api.put(`/api/candidatures/${id}`, { ...cand, priorite: newPrio });
+    load();
+    showToast(newPrio ? '🔥 Marqué prioritaire !' : 'Priorité retirée');
+  };
+
+  const deleteCand = async () => {
+    await api.delete(`/api/candidatures/${id}`);
+    navigate('candidatures');
   };
 
   const addEchange = async () => {
     if (!newEchange.contenu.trim()) return;
     await api.post(`/api/candidatures/${id}/echanges`, newEchange);
     setNewEchange({ type:'Email reçu', contenu:'', date:new Date().toISOString().split('T')[0] });
-    setShowEchangeForm(false); load(); showToast('✅ Échange ajouté !');
+    setShowEchangeForm(false);
+    load();
+    showToast('✅ Échange ajouté !');
   };
 
   const delEchange = async (eid) => {
     if (window.confirm('Supprimer cet échange ?')) {
-      await api.delete(`/api/echanges/${eid}`); load();
+      await api.delete(`/api/echanges/${eid}`);
+      load();
     }
   };
 
@@ -111,15 +159,41 @@ export default function Detail({ id, navigate }) {
 
   return (
     <div className="detail-page">
-      <button className="back-btn" onClick={() => navigate('candidatures')}>← Retour aux candidatures</button>
+      <Confetti active={confetti} onDone={() => setConfetti(false)} />
 
-      {/* HERO HEADER */}
-      <div className="detail-hero">
+      <div className="detail-topbar">
+        <button className="back-btn" onClick={() => navigate('candidatures')}>← Retour aux candidatures</button>
+        <button className="btn-delete-outline" onClick={() => setShowDeleteConfirm(true)}>🗑 Supprimer</button>
+      </div>
+
+      {showDeleteConfirm && (
+        <div className="delete-confirm-banner">
+          <span>Supprimer <strong>{cand.entreprise}</strong> définitivement ?</span>
+          <div style={{display:'flex',gap:8}}>
+            <button className="btn-confirm-delete" onClick={deleteCand}>Oui, supprimer</button>
+            <button className="btn-cancel-delete" onClick={() => setShowDeleteConfirm(false)}>Annuler</button>
+          </div>
+        </div>
+      )}
+
+      {/* HERO */}
+      <div className={`detail-hero ${cand.priorite ? 'hero-prioritaire' : ''}`}>
         <div className="detail-hero-left">
           <CompanyLogo entreprise={cand.entreprise} />
           <div className="detail-hero-info">
-            <h1 className="detail-entreprise">{cand.entreprise}</h1>
+            <div className="detail-hero-name-row">
+              <h1 className="detail-entreprise">{cand.entreprise}</h1>
+              {cand.priorite ? <span className="detail-prio-badge">🔥 Prioritaire</span> : null}
+            </div>
             <p className="detail-poste">{cand.poste || 'Poste non renseigné'}</p>
+            {(cand.score > 0) && (
+              <div className="detail-score-row">
+                {[1,2,3,4,5].map(i => (
+                  <span key={i} className={`detail-star ${i <= cand.score ? 'on' : ''}`}>★</span>
+                ))}
+                <span className="detail-score-label">{cand.score}/5</span>
+              </div>
+            )}
             <div className="detail-hero-meta">
               {cand.localisation && <span className="detail-chip">📍 {cand.localisation}</span>}
               {cand.source && <span className="detail-chip">🔗 {cand.source}</span>}
@@ -129,16 +203,27 @@ export default function Detail({ id, navigate }) {
           </div>
         </div>
         <div className="detail-hero-right">
-          <span className="statut-pill" style={{background: color+'18', color: color, borderColor: color+'30'}}>
+          <span className="statut-pill" style={{background: color+'25', color: color, borderColor: color+'40'}}>
             {cand.statut}
           </span>
-          {!editing
-            ? <button className="btn-edit" onClick={() => setEditing(true)}>✏️ Modifier</button>
-            : <div style={{display:'flex',gap:8}}>
-                <button className="btn-cancel" onClick={() => setEditing(false)}>Annuler</button>
-                <button className="btn-save-primary" onClick={save}>💾 Sauvegarder</button>
-              </div>
-          }
+          <div className="detail-hero-actions">
+            <button
+              className={`btn-prio-hero ${cand.priorite ? 'active' : ''}`}
+              onClick={togglePrio}
+              title={cand.priorite ? 'Retirer priorité' : 'Marquer prioritaire'}
+            >
+              🔥
+            </button>
+            {!editing
+              ? <button className="btn-edit" onClick={() => setEditing(true)}>✏️ Modifier</button>
+              : <>
+                  <button className="btn-cancel" onClick={() => { setEditing(false); setForm({...cand}); }}>Annuler</button>
+                  <button className="btn-save-primary" onClick={save} disabled={saving}>
+                    {saving ? '⏳' : '💾 Sauvegarder'}
+                  </button>
+                </>
+            }
+          </div>
         </div>
       </div>
 
@@ -168,6 +253,10 @@ export default function Detail({ id, navigate }) {
                 </select>
               </div>
               <div className="form-group">
+                <label>Score attractivité</label>
+                <StarRating value={form.score || 0} onChange={v => setForm({...form, score: v})} />
+              </div>
+              <div className="form-group">
                 <label>Notes</label>
                 <textarea value={form.notes||''} onChange={e => setForm({...form,notes:e.target.value})} rows={4} />
               </div>
@@ -186,6 +275,12 @@ export default function Detail({ id, navigate }) {
                   <span className="info-val">{val}</span>
                 </div>
               ) : null)}
+              {cand.score > 0 && (
+                <div className="info-row">
+                  <span className="info-label">⭐ Score</span>
+                  <span className="info-val"><StarRating value={cand.score} readOnly /></span>
+                </div>
+              )}
               {cand.notes && (
                 <div className="notes-block">
                   <div className="notes-label">📝 Notes</div>
@@ -247,7 +342,7 @@ export default function Detail({ id, navigate }) {
         </div>
       </div>
 
-      {toast && <div className="toast">{toast}</div>}
+      {toast && <div className={`toast ${toastType === 'success' ? 'toast-success' : ''}`}>{toast}</div>}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Dashboard from './pages/Dashboard';
 import Candidatures from './pages/Candidatures';
 import Detail from './pages/Detail';
@@ -8,8 +8,14 @@ import './App.css';
 export default function App() {
   const [page, setPage] = useState('dashboard');
   const [selectedId, setSelectedId] = useState(null);
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
 
-  const navigate = (p, id = null) => { setPage(p); setSelectedId(id); window.scrollTo(0,0); };
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+    localStorage.setItem('theme', darkMode ? 'dark' : 'light');
+  }, [darkMode]);
+
+  const navigate = (p, id = null) => { setPage(p); setSelectedId(id); window.scrollTo(0, 0); };
 
   return (
     <div className="app">
@@ -23,6 +29,9 @@ export default function App() {
           <button className={page === 'candidatures' || page === 'detail' ? 'nav-btn active' : 'nav-btn'} onClick={() => navigate('candidatures')}>Candidatures</button>
           <button className={page === 'stats' ? 'nav-btn active' : 'nav-btn'} onClick={() => navigate('stats')}>Statistiques</button>
         </div>
+        <button className="theme-toggle" onClick={() => setDarkMode(d => !d)} title={darkMode ? 'Mode clair' : 'Mode sombre'}>
+          {darkMode ? '☀️' : '🌙'}
+        </button>
       </nav>
 
       <main className="main">
@@ -41,6 +50,9 @@ export default function App() {
         </button>
         <button className={page === 'stats' ? 'bottom-nav-btn active' : 'bottom-nav-btn'} onClick={() => navigate('stats')}>
           <span>📈</span><span>Stats</span>
+        </button>
+        <button className="bottom-nav-btn" onClick={() => setDarkMode(d => !d)}>
+          <span>{darkMode ? '☀️' : '🌙'}</span><span>Thème</span>
         </button>
       </nav>
     </div>
