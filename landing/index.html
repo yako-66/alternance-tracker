@@ -40,7 +40,7 @@
     <p class="hero-subtitle">
       Fini le tableau Excel et les relances oubliées. AlternanceTracker centralise toutes tes candidatures, t'envoie des rappels intelligents et te connecte à un Coach IA qui analyse ta stratégie en temps réel.
     </p>
-    <form class="hero-form" action="https://formspree.io/f/REMPLACE_PAR_TON_ID" method="POST">
+    <form class="hero-form" data-waitlist>
       <input type="email" name="email" placeholder="ton@email.com" required class="hero-input" />
       <button type="submit" class="btn btn-hero">Je veux accès en avant-première ✨</button>
     </form>
@@ -309,10 +309,7 @@
         <div class="waitlist-emoji">🎯</div>
         <h2>Sois parmi les premiers.</h2>
         <p>Rejoins la liste d'attente et accède gratuitement à AlternanceTracker dès le lancement de la bêta. Aucune carte bancaire requise.</p>
-        <form class="waitlist-form" action="https://formsubmit.co/yakup42100@gmail.com" method="POST">
-          <input type="hidden" name="_subject" value="🎯 Inscription liste d'attente AlternanceTracker" />
-          <input type="hidden" name="_next" value="https://yako-66.github.io/alternance-tracker/merci.html" />
-          <input type="hidden" name="_captcha" value="false" />
+        <form class="waitlist-form" data-waitlist>
           <input type="text" name="name" placeholder="Ton prénom" required />
           <input type="email" name="email" placeholder="ton@email.com" required />
           <select name="profile">
@@ -354,12 +351,34 @@
       });
     });
 
-    // Show loading state on form submit (normal POST, no fetch)
-    document.querySelectorAll('form').forEach(form => {
-      form.addEventListener('submit', () => {
+    // Waitlist forms — appel direct à notre API Render
+    const API = 'https://alternance-tracker.onrender.com/api/waitlist';
+    document.querySelectorAll('form[data-waitlist]').forEach(form => {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
         const btn = form.querySelector('button[type="submit"]');
-        if (btn) { btn.textContent = '⏳ Envoi…'; btn.disabled = true; }
+        const data = Object.fromEntries(new FormData(form));
+        btn.textContent = '⏳ Envoi…'; btn.disabled = true;
+        try {
+          const res = await fetch(API, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+          });
+          const json = await res.json();
+          if (res.ok && json.success) {
+            window.location.href = 'merci.html';
+          } else {
+            throw new Error(json.error || 'Erreur');
+          }
+        } catch(err) {
+          btn.textContent = '❌ ' + (err.message === 'Failed to fetch' ? 'Serveur indisponible, réessaie' : err.message);
+          btn.style.background = '#EF4444';
+          setTimeout(() => { btn.textContent = form.dataset.btnText || 'Je veux accès en avant-première ✨'; btn.style.background = ''; btn.disabled = false; }, 3000);
+        }
       });
+      const btn = form.querySelector('button[type="submit"]');
+      if (btn) form.dataset.btnText = btn.textContent;
     });
 
     // Navbar scroll effect

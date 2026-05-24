@@ -18,7 +18,34 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../client/build')));
 
-// Route publique — accessible SANS auth
+// Routes publiques — accessibles SANS auth
+const LANDING_ORIGIN = 'https://yako-66.github.io';
+app.options('/api/waitlist', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', LANDING_ORIGIN);
+  res.setHeader('Access-Control-Allow-Methods', 'POST');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.sendStatus(204);
+});
+app.post('/api/waitlist', async (req, res) => {
+  await getDb();
+  res.setHeader('Access-Control-Allow-Origin', LANDING_ORIGIN);
+  const { name, email, profile } = req.body;
+  if (!email || !email.includes('@')) return res.status(400).json({ error: 'Email invalide' });
+  try {
+    run('INSERT OR IGNORE INTO waitlist (name,email,profile,created_at) VALUES (?,?,?,?)',
+      [name||'', email.toLowerCase().trim(), profile||'', new Date().toISOString()]);
+    const count = query('SELECT COUNT(*) as c FROM waitlist')[0].c;
+    res.json({ success: true, count });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/waitlist', async (req, res) => {
+  await getDb();
+  res.setHeader('Access-Control-Allow-Origin', LANDING_ORIGIN);
+  const rows = query('SELECT name,email,profile,created_at FROM waitlist ORDER BY id DESC', []);
+  res.json({ count: rows.length, entries: rows });
+});
+
 app.get('/api/public/:token', async (req, res) => {
   await getDb();
   const row = query('SELECT * FROM shares WHERE token=?', [req.params.token])[0];

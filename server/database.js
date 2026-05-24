@@ -99,6 +99,7 @@ async function getDb() {
   try { db.run("ALTER TABLE candidatures ADD COLUMN taille TEXT DEFAULT ''"); save(); } catch(e) {}
   try { db.run("ALTER TABLE candidatures ADD COLUMN date_rappel TEXT DEFAULT ''"); save(); } catch(e) {}
   try { db.run(`CREATE TABLE IF NOT EXISTS shares (id INTEGER PRIMARY KEY AUTOINCREMENT, token TEXT UNIQUE NOT NULL, created_at TEXT)`); save(); } catch(e) {}
+  try { db.run(`CREATE TABLE IF NOT EXISTS waitlist (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT UNIQUE NOT NULL, profile TEXT, created_at TEXT)`); save(); } catch(e) {}
 
   // Migration : renseigne localisation pour les entrées existantes qui l'ont vide
   const migrations = [
