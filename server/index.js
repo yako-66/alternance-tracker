@@ -170,7 +170,7 @@ async function callGemini({ system, messages, max_tokens = 1024 }) {
     parts: [{ text: m.content }],
   }));
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${key}`,
     {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
