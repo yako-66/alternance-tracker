@@ -47,7 +47,7 @@ app.get('/api/waitlist', async (req, res) => {
 });
 
 app.get('/api/ping', (req, res) => {
-  res.json({ ok: true, gemini: !!process.env.GEMINI_API_KEY, ts: Date.now() });
+  res.json({ ok: true, ai: !!process.env.GROQ_API_KEY, ts: Date.now() });
 });
 
 app.get('/api/public/:token', async (req, res) => {
@@ -161,50 +161,25 @@ app.get('/api/stats', (req, res) => {
   res.json({ total, byStatut, recent });
 });
 
-// ── AI routes (Gemini Flash — gratuit jusqu'à 1500 req/jour) ──
-async function callGemini({ system, messages, max_tokens = 1024 }) {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) throw new Error('GEMINI_API_KEY non configuré');
-  const contents = messages.map(m => ({
-    role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.content }],
-  }));
-  const body = JSON.stringify({
-    ...(system && { systemInstruction: { parts: [{ text: system }] } }),
-    contents,
-    generationConfig: { maxOutputTokens: max_tokens },
-  });
-  const MODELS = [
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
+// ── AI routes (Groq — 100% gratuit, 14 400 req/jour) ──
+async function callAI({ system, messages, max_tokens = 1024 }) {
+  const key = process.env.GROQ_API_KEY;
+  if (!key) throw new Error('GROQ_API_KEY non configuré');
+  const msgs = [
+    ...(system ? [{ role: 'system', content: system }] : []),
+    ...messages,
   ];
-  for (const model of MODELS) {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-      { method: 'POST', headers: { 'content-type': 'application/json' }, body }
-    );
-    if (res.ok) {
-      const data = await res.json();
-      return data.candidates[0].content.parts[0].text;
-    }
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'authorization': `Bearer ${key}` },
+    body: JSON.stringify({ model: 'llama-3.1-8b-instant', messages: msgs, max_tokens }),
+  });
+  if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    console.error(`[Gemini] ${model} → ${res.status}:`, JSON.stringify(err));
-    if (res.status === 404) continue;
-    if (res.status === 429) {
-      await new Promise(r => setTimeout(r, 3000));
-      const r2 = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-        { method: 'POST', headers: { 'content-type': 'application/json' }, body }
-      );
-      if (r2.ok) { const d = await r2.json(); return d.candidates[0].content.parts[0].text; }
-      const e2 = await r2.json().catch(() => ({}));
-      console.error(`[Gemini] ${model} retry → ${r2.status}:`, JSON.stringify(e2));
-      continue;
-    }
-    throw new Error(`Gemini ${res.status}: ${err?.error?.message || JSON.stringify(err)}`);
+    throw new Error(`Groq ${res.status}: ${err?.error?.message || JSON.stringify(err)}`);
   }
-  throw new Error('Tous les modèles Gemini ont échoué — vérifie les logs Render pour le détail.');
+  const data = await res.json();
+  return data.choices[0].message.content;
 }
 
 app.post('/api/ai/coach', async (req, res) => {
@@ -213,7 +188,7 @@ app.post('/api/ai/coach', async (req, res) => {
     `- ${c.entreprise} (${c.poste||'?'}) : ${c.statut}, ${c.localisation||''}, ${c.date_candidature||''}`
   ).join('\n') || '(aucune candidature)';
   try {
-    const content = await callGemini({
+    const content = await callAI({
       system: `Tu es un coach spécialisé dans la recherche d'alternance en France. Tu connais les candidatures de l'utilisateur :\n${ctx}\n\nRéponds en français, sois concis et actionnable. Max 3 paragraphes.`,
       messages: (messages||[]).slice(-10),
     });
@@ -224,7 +199,7 @@ app.post('/api/ai/coach', async (req, res) => {
 app.post('/api/ai/parse', async (req, res) => {
   const { text } = req.body;
   try {
-    const raw = await callGemini({
+    const raw = await callAI({
       system: 'Tu extrais des informations structurées depuis une offre d\'emploi. Réponds UNIQUEMENT avec un JSON valide, aucun autre texte. Format : {"entreprise":"","poste":"","localisation":"","source":"","salaire":"","secteur":"","notes":""}',
       messages: [{ role: 'user', content: (text||'').slice(0, 4000) }],
       max_tokens: 512,
@@ -237,7 +212,7 @@ app.post('/api/ai/parse', async (req, res) => {
 app.post('/api/ai/cover-letter', async (req, res) => {
   const { candidature, profil } = req.body;
   try {
-    const letter = await callGemini({
+    const letter = await callAI({
       system: 'Tu rédiges des lettres de motivation professionnelles pour des candidatures en alternance en France. Ton style : direct, enthousiaste, personnalisé. 3 paragraphes max.',
       messages: [{ role: 'user', content: `Rédige une lettre de motivation pour ce poste :\nEntreprise : ${candidature.entreprise}\nPoste : ${candidature.poste||'alternance'}\nLocalisation : ${candidature.localisation||''}\nSecteur : ${candidature.secteur||''}\n\nProfil du candidat :\n${profil || 'Étudiant en alternance recherchant une entreprise'}` }],
       max_tokens: 1500,
@@ -249,7 +224,7 @@ app.post('/api/ai/cover-letter', async (req, res) => {
 app.post('/api/ai/interview', async (req, res) => {
   const { messages, candidature } = req.body;
   try {
-    const content = await callGemini({
+    const content = await callAI({
       system: `Tu joues le rôle d'un recruteur RH pour le poste de "${candidature?.poste||'alternant'}" chez "${candidature?.entreprise||'notre entreprise'}". Pose des questions d'entretien réalistes, une à la fois. Donne un feedback bref puis pose la suivante. Commence par te présenter. Réponds en français.`,
       messages: (messages||[]).slice(-10),
       max_tokens: 512,
