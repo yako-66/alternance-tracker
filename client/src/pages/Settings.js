@@ -29,6 +29,9 @@ export default function Settings() {
   const [autoArchiveDays, setAutoArchiveDays] = useState(() => parseInt(localStorage.getItem('auto_archive_days') || '30'));
   const [autoArchiveStatus, setAutoArchiveStatus] = useState('');
   const [toast, setToast] = useState('');
+  const [shareUrl, setShareUrl] = useState('');
+  const [shareCopied, setShareCopied] = useState(false);
+  const [shareLoading, setShareLoading] = useState(false);
   const restoreRef = useRef(null);
 
   const unlockedIds = JSON.parse(localStorage.getItem('achievements') || '[]');
@@ -79,6 +82,32 @@ export default function Settings() {
   };
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3500); };
+
+  const generateShare = async () => {
+    setShareLoading(true);
+    try {
+      const data = await api.post('/api/share', {});
+      const url = window.location.origin + '/share/' + data.token;
+      setShareUrl(url);
+      showToast('✅ Lien de partage généré !');
+    } catch { showToast('❌ Erreur lors de la génération du lien'); }
+    setShareLoading(false);
+  };
+
+  const deleteShare = async () => {
+    try {
+      await api.delete('/api/share');
+      setShareUrl('');
+      showToast('✅ Lien de partage supprimé');
+    } catch { showToast('❌ Erreur lors de la suppression'); }
+  };
+
+  const copyShareUrl = () => {
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    });
+  };
 
   const save = () => {
     set('user_name', name);
@@ -398,6 +427,40 @@ export default function Settings() {
                 </div>
               );
             })}
+          </div>
+        </div>
+
+        {/* PARTAGE */}
+        <div className="settings-card">
+          <h2 className="settings-section-title">🔗 Partage en lecture seule</h2>
+          <div className="settings-actions">
+            <div className="settings-action-item">
+              <div>
+                <div className="settings-action-title">Lien de partage public</div>
+                <div className="settings-action-desc">Génère un lien permettant à quelqu'un de voir tes candidatures en lecture seule, sans compte.</div>
+              </div>
+              <button className="btn-settings-action btn-settings-action-green" onClick={generateShare} disabled={shareLoading}>
+                {shareLoading ? '⏳' : '🔗 Générer'}
+              </button>
+            </div>
+            {shareUrl && (
+              <div className="settings-action-item">
+                <div style={{flex:1}}>
+                  <input
+                    type="text"
+                    readOnly
+                    value={shareUrl}
+                    style={{width:'100%',border:'1.5px solid var(--border2)',borderRadius:8,padding:'8px 10px',background:'var(--bg)',color:'var(--text)',fontSize:'0.8rem',fontFamily:'inherit'}}
+                  />
+                </div>
+                <button className="btn-settings-action" onClick={copyShareUrl}>
+                  {shareCopied ? '✅ Copié !' : '📋 Copier'}
+                </button>
+                <button className="btn-settings-action btn-settings-danger-light" onClick={deleteShare} title="Révoquer le lien">
+                  🗑 Révoquer
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

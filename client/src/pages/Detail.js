@@ -129,6 +129,15 @@ export default function Detail({ id, navigate }) {
   const [checklist, setChecklist] = useState([]);
   const [newCheckItem, setNewCheckItem] = useState('');
   const checklistLoaded = React.useRef(false);
+  const [showCoverLetter, setShowCoverLetter] = useState(false);
+  const [coverLetter, setCoverLetter] = useState('');
+  const [coverLoading, setCoverLoading] = useState(false);
+  const [userProfil, setUserProfil] = useState(() => localStorage.getItem('user_profil') || '');
+  const [showInterview, setShowInterview] = useState(false);
+  const [interviewMessages, setInterviewMessages] = useState([]);
+  const [interviewInput, setInterviewInput] = useState('');
+  const [interviewLoading, setInterviewLoading] = useState(false);
+  const interviewBottomRef = React.useRef(null);
 
   const copyTemplate = (text, idx) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -217,6 +226,30 @@ export default function Detail({ id, navigate }) {
     }
   };
 
+  const generateCoverLetter = async () => {
+    setCoverLoading(true);
+    try {
+      const res = await api.post('/api/ai/cover-letter', { candidature: cand, profil: userProfil });
+      setCoverLetter(res.letter);
+    } catch(e) { setCoverLetter('Erreur : ' + e.message); }
+    setCoverLoading(false);
+  };
+
+  const sendInterview = async () => {
+    if (!interviewInput.trim() || interviewLoading) return;
+    const msgs = [...interviewMessages, { role: 'user', content: interviewInput }];
+    setInterviewMessages(msgs);
+    setInterviewInput('');
+    setInterviewLoading(true);
+    try {
+      const res = await api.post('/api/ai/interview', { messages: msgs, candidature: cand });
+      setInterviewMessages(prev => [...prev, { role: 'assistant', content: res.content }]);
+    } catch(e) { setInterviewMessages(prev => [...prev, { role: 'assistant', content: '❌ Erreur' }]); }
+    setInterviewLoading(false);
+  };
+
+  React.useEffect(() => { interviewBottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [interviewMessages]);
+
   if (!cand) return <div className="loading"><div className="spinner" /></div>;
 
   const color = STATUT_COLORS[cand.statut] || '#9a9aa8';
@@ -301,6 +334,8 @@ export default function Detail({ id, navigate }) {
             >
               🔥
             </button>
+            <button className="btn-edit" onClick={() => { setShowCoverLetter(s => !s); setShowInterview(false); }} title="Lettre de motivation">📝 Lettre</button>
+            <button className="btn-edit" onClick={() => { setShowInterview(s => !s); setShowCoverLetter(false); if (!showInterview && interviewMessages.length === 0) { setInterviewLoading(true); api.post('/api/ai/interview', { messages: [], candidature: cand }).then(r => { setInterviewMessages([{ role: 'assistant', content: r.content }]); setInterviewLoading(false); }).catch(() => setInterviewLoading(false)); } }} title="Simuler entretien">🎤 Entretien</button>
             {!editing
               ? <button className="btn-edit" onClick={() => setEditing(true)}>✏️ Modifier</button>
               : <>
@@ -498,6 +533,86 @@ export default function Detail({ id, navigate }) {
           </div>
         );
       })()}
+
+      {/* Cover Letter Modal */}
+      {showCoverLetter && (
+        <div className="ai-modal-overlay" onClick={() => setShowCoverLetter(false)}>
+          <div className="ai-modal" onClick={e => e.stopPropagation()}>
+            <div className="ai-modal-header">
+              <span className="ai-modal-title">📝 Lettre de motivation — {cand.entreprise}</span>
+              <button className="qnotes-close" onClick={() => setShowCoverLetter(false)}>✕</button>
+            </div>
+            <div className="ai-modal-body">
+              <div className="form-group" style={{marginBottom:12}}>
+                <label style={{fontSize:'0.8rem',fontWeight:600,color:'var(--text2)'}}>Ton profil (optionnel)</label>
+                <textarea
+                  rows={3}
+                  style={{width:'100%',border:'1.5px solid var(--border2)',borderRadius:8,padding:'8px 10px',background:'var(--bg)',color:'var(--text)',fontSize:'0.82rem',fontFamily:'inherit',resize:'vertical',marginTop:4}}
+                  placeholder="Ex: Étudiant en BTS SIO option SISR, passionné par les réseaux et l'infrastructure cloud…"
+                  value={userProfil}
+                  onChange={e => { setUserProfil(e.target.value); localStorage.setItem('user_profil', e.target.value); }}
+                />
+              </div>
+              <button className="btn-save-primary" onClick={generateCoverLetter} disabled={coverLoading} style={{marginBottom:12}}>
+                {coverLoading ? '⏳ Génération…' : '✨ Générer la lettre'}
+              </button>
+              {coverLetter && (
+                <>
+                  <textarea
+                    rows={14}
+                    readOnly
+                    style={{width:'100%',border:'1.5px solid var(--border2)',borderRadius:8,padding:'10px 12px',background:'var(--bg)',color:'var(--text)',fontSize:'0.82rem',fontFamily:'inherit',resize:'vertical'}}
+                    value={coverLetter}
+                  />
+                  <button className="btn-edit" style={{marginTop:8}} onClick={() => { navigator.clipboard.writeText(coverLetter); showToast('📋 Lettre copiée !'); }}>
+                    📋 Copier
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Interview Simulation Modal */}
+      {showInterview && (
+        <div className="ai-modal-overlay" onClick={() => setShowInterview(false)}>
+          <div className="ai-modal ai-modal-interview" onClick={e => e.stopPropagation()}>
+            <div className="ai-modal-header">
+              <span className="ai-modal-title">🎤 Simulation entretien — {cand.entreprise}</span>
+              <button className="qnotes-close" onClick={() => setShowInterview(false)}>✕</button>
+            </div>
+            <div className="ai-interview-messages">
+              {interviewMessages.map((m, i) => (
+                <div key={i} className={`coach-msg coach-msg-${m.role}`}>
+                  <div className="coach-msg-bubble">{m.content}</div>
+                </div>
+              ))}
+              {interviewLoading && (
+                <div className="coach-msg coach-msg-assistant">
+                  <div className="coach-msg-bubble coach-loading">
+                    <span className="coach-dot" /><span className="coach-dot" /><span className="coach-dot" />
+                  </div>
+                </div>
+              )}
+              <div ref={interviewBottomRef} />
+            </div>
+            <div className="coach-input-row" style={{borderTop:'1px solid var(--border2)',padding:'10px 12px'}}>
+              <textarea
+                className="coach-input"
+                value={interviewInput}
+                onChange={e => setInterviewInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendInterview(); } }}
+                placeholder="Ta réponse… (Entrée pour envoyer)"
+                rows={2}
+              />
+              <button className="coach-send-btn" onClick={sendInterview} disabled={interviewLoading || !interviewInput.trim()}>
+                {interviewLoading ? '⏳' : '➤'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {toast && <div className={`toast ${toastType === 'success' ? 'toast-success' : ''}`}>{toast}</div>}
     </div>

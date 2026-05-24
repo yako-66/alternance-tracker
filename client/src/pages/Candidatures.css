@@ -561,3 +561,26 @@
 
 /* ── Cand score row ── */
 .cand-score-row { display:flex; gap:1px; }
+
+/* ── Parse Offer IA ── */
+.parse-offer-section { margin-bottom:14px; }
+.btn-parse-offer {
+  padding:8px 18px; border-radius:var(--radius-full);
+  background:linear-gradient(135deg,var(--purple),#9C27B0);
+  color:white; border:none; cursor:pointer; font-size:0.82rem; font-weight:600;
+  box-shadow:var(--shadow-purple); transition:var(--t-spring);
+}
+.btn-parse-offer:hover { transform:translateY(-1px) scale(1.02); }
+.parse-offer-box { margin-top:10px; display:flex; flex-direction:column; gap:8px; }
+.parse-textarea {
+  border:1.5px solid var(--border2); border-radius:var(--radius-sm);
+  background:var(--bg); color:var(--text); padding:10px 12px;
+  font-size:0.82rem; font-family:var(--font-body); resize:vertical;
+}
+.btn-parse-run {
+  padding:8px 18px; border-radius:var(--radius-full);
+  background:var(--gradient); color:white; border:none; cursor:pointer;
+  font-size:0.82rem; font-weight:600; box-shadow:var(--shadow-purple);
+  align-self:flex-start; transition:var(--t-spring);
+}
+.btn-parse-run:disabled { opacity:0.5; cursor:not-allowed; }

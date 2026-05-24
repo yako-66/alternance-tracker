@@ -9,6 +9,7 @@ import Calendar from './pages/Calendar';
 import GlobalTimeline from './pages/GlobalTimeline';
 import Comparateur from './pages/Comparateur';
 import PrepEntretien from './pages/PrepEntretien';
+import Wrapped from './pages/Wrapped';
 import { api } from './hooks/api';
 import './App.css';
 
@@ -220,6 +221,94 @@ function QuickNotes({ onClose }) {
   );
 }
 
+function CoachIA({ onClose, candidatures }) {
+  const [messages, setMessages] = useState([
+    { role: 'assistant', content: '👋 Bonjour ! Je suis ton coach alternance. Pose-moi une question sur ta stratégie, tes candidatures, ou demande-moi de l\'analyser !' }
+  ]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef(null);
+  const inputRef = useRef(null);
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  const send = async () => {
+    const txt = input.trim();
+    if (!txt || loading) return;
+    const userMsg = { role: 'user', content: txt };
+    const newMsgs = [...messages, userMsg];
+    setMessages(newMsgs);
+    setInput('');
+    setLoading(true);
+    try {
+      const res = await api.post('/api/ai/coach', {
+        messages: newMsgs.filter(m => m.role !== 'assistant' || newMsgs.indexOf(m) > 0),
+        candidatures,
+      });
+      setMessages(prev => [...prev, { role: 'assistant', content: res.content }]);
+    } catch(e) {
+      setMessages(prev => [...prev, { role: 'assistant', content: '❌ Erreur : ' + (e.message || 'API indisponible') }]);
+    }
+    setLoading(false);
+  };
+
+  const handleKey = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+    if (e.key === 'Escape') onClose();
+  };
+
+  const SUGGESTIONS = ['Analyse mes candidatures', 'Quelles entreprises relancer ?', 'Comment améliorer mon taux d\'entretien ?'];
+
+  return (
+    <div className="coach-overlay" onClick={onClose}>
+      <div className="coach-panel" onClick={e => e.stopPropagation()}>
+        <div className="coach-header">
+          <span className="coach-title">🤖 Coach IA</span>
+          <span className="coach-subtitle">{candidatures.length} candidatures analysées</span>
+          <button className="qnotes-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="coach-messages">
+          {messages.map((m, i) => (
+            <div key={i} className={`coach-msg coach-msg-${m.role}`}>
+              <div className="coach-msg-bubble">{m.content}</div>
+            </div>
+          ))}
+          {loading && (
+            <div className="coach-msg coach-msg-assistant">
+              <div className="coach-msg-bubble coach-loading">
+                <span className="coach-dot" /><span className="coach-dot" /><span className="coach-dot" />
+              </div>
+            </div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+        {messages.length <= 1 && (
+          <div className="coach-suggestions">
+            {SUGGESTIONS.map(s => (
+              <button key={s} className="coach-suggestion-btn" onClick={() => { setInput(s); inputRef.current?.focus(); }}>{s}</button>
+            ))}
+          </div>
+        )}
+        <div className="coach-input-row">
+          <textarea
+            ref={inputRef}
+            className="coach-input"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={handleKey}
+            placeholder="Pose une question… (Entrée pour envoyer)"
+            rows={2}
+          />
+          <button className="coach-send-btn" onClick={send} disabled={loading || !input.trim()}>
+            {loading ? '⏳' : '➤'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [page, setPage] = useState('dashboard');
   const [selectedId, setSelectedId] = useState(null);
@@ -231,6 +320,8 @@ export default function App() {
   const [showSearch, setShowSearch] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [showPomodoro, setShowPomodoro] = useState(false);
+  const [showCoach, setShowCoach] = useState(false);
+  const [candidatures, setCandidatures] = useState([]);
 
   // Sync theme to DOM + localStorage
   useEffect(() => {
@@ -257,6 +348,7 @@ export default function App() {
   // Check rappels + auto-archive on startup
   useEffect(() => {
     api.get('/api/candidatures').then(all => {
+      setCandidatures(all);
       // Rappels personnalisés
       if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
         const today = new Date(); today.setHours(0,0,0,0);
@@ -315,6 +407,7 @@ export default function App() {
     { id:'timeline',     label:'Timeline',     icon:'🕐' },
     { id:'comparateur',  label:'Comparer',     icon:'⚖️' },
     { id:'prep',         label:'Entretien',    icon:'🎤' },
+    { id:'wrapped',      label:'Wrapped',      icon:'🎁' },
   ];
 
   const isActive = (id) => {
@@ -327,6 +420,7 @@ export default function App() {
       {showSearch && <GlobalSearch navigate={navigate} onClose={() => setShowSearch(false)} />}
       {showNotes && <QuickNotes onClose={() => setShowNotes(false)} />}
       {showPomodoro && <Pomodoro onClose={() => setShowPomodoro(false)} />}
+      {showCoach && <CoachIA onClose={() => setShowCoach(false)} candidatures={candidatures} />}
 
       <nav className="navbar">
         <div className="nav-brand" onClick={() => navigate('dashboard')}>
@@ -366,6 +460,7 @@ export default function App() {
         {page === 'timeline'     && <GlobalTimeline navigate={navigate} />}
         {page === 'comparateur'  && <Comparateur navigate={navigate} />}
         {page === 'prep'         && <PrepEntretien navigate={navigate} />}
+        {page === 'wrapped'      && <Wrapped navigate={navigate} />}
       </main>
 
       <nav className="bottom-nav">
@@ -389,8 +484,9 @@ export default function App() {
 
       {/* FABs */}
       <div className="fab-group">
-        <button className={`qnotes-fab fab-pomodoro ${showPomodoro ? 'qnotes-fab-active' : ''}`} onClick={() => { setShowPomodoro(s => !s); setShowNotes(false); }} title="Pomodoro">⏱️</button>
-        <button className={`qnotes-fab ${showNotes ? 'qnotes-fab-active' : ''}`} onClick={() => { setShowNotes(s => !s); setShowPomodoro(false); }} title="Notes rapides">📝</button>
+        <button className={`qnotes-fab fab-pomodoro ${showPomodoro ? 'qnotes-fab-active' : ''}`} onClick={() => { setShowPomodoro(s => !s); setShowNotes(false); setShowCoach(false); }} title="Pomodoro">⏱️</button>
+        <button className={`qnotes-fab ${showNotes ? 'qnotes-fab-active' : ''}`} onClick={() => { setShowNotes(s => !s); setShowPomodoro(false); setShowCoach(false); }} title="Notes rapides">📝</button>
+        <button className={`qnotes-fab fab-coach ${showCoach ? 'qnotes-fab-active' : ''}`} onClick={() => { setShowCoach(s => !s); setShowNotes(false); setShowPomodoro(false); }} title="Coach IA">🤖</button>
       </div>
     </div>
   );

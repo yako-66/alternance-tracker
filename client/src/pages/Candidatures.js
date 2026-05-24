@@ -238,6 +238,30 @@ export default function Candidatures({ navigate }) {
   };
 
   const [doublonWarning, setDoublonWarning] = useState('');
+  const [showParse, setShowParse] = useState(false);
+  const [parseText, setParseText] = useState('');
+  const [parsePending, setParsePending] = useState(false);
+
+  const runParse = async () => {
+    if (!parseText.trim()) return;
+    setParsePending(true);
+    try {
+      const res = await api.post('/api/ai/parse', { text: parseText });
+      setForm(f => ({...f,
+        entreprise: res.entreprise || f.entreprise,
+        poste: res.poste || f.poste,
+        localisation: res.localisation || f.localisation,
+        source: res.source || f.source,
+        salaire: res.salaire || f.salaire,
+        secteur: res.secteur || f.secteur,
+        notes: res.notes ? (f.notes ? f.notes + '\n' + res.notes : res.notes) : f.notes,
+      }));
+      setShowParse(false);
+      setParseText('');
+      showToast('✨ Offre parsée ! Vérifie les champs.');
+    } catch(e) { showToast('❌ Erreur parsing : ' + (e.message || 'API indisponible')); }
+    setParsePending(false);
+  };
 
   const checkDoublon = (nom) => {
     if (!nom.trim()) { setDoublonWarning(''); return; }
@@ -673,6 +697,25 @@ export default function Candidatures({ navigate }) {
           onClose={() => { if (!savedOk) { setShowModal(false); setSaving(false); } }}
           onSave={save} saving={saving} savedOk={savedOk} savedMsg={savedMsg}
         >
+          <div className="parse-offer-section">
+            <button type="button" className="btn-parse-offer" onClick={() => setShowParse(s => !s)}>
+              ✨ {showParse ? 'Masquer' : "Parser une offre avec l'IA"}
+            </button>
+            {showParse && (
+              <div className="parse-offer-box">
+                <textarea
+                  className="parse-textarea"
+                  rows={5}
+                  placeholder="Colle ici le texte de l'offre d'emploi (depuis LinkedIn, Indeed, etc.)…"
+                  value={parseText}
+                  onChange={e => setParseText(e.target.value)}
+                />
+                <button type="button" className="btn-parse-run" onClick={runParse} disabled={parsePending || !parseText.trim()}>
+                  {parsePending ? '⏳ Analyse…' : '🔍 Remplir le formulaire'}
+                </button>
+              </div>
+            )}
+          </div>
           <div className="form-grid">
             <div className="form-group full">
               <label>Entreprise *</label>
