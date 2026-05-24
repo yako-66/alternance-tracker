@@ -29,6 +29,96 @@ const STATUT_COLORS = {
   'Entretien':'#00d4a0','Refus':'#ff6b6b','Sans suite':'#4a4a60'
 };
 
+function ActivityHeatmap({ list }) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dayCounts = {};
+  list.forEach(c => {
+    if (!c.date_candidature) return;
+    const parts = c.date_candidature.includes('/') ? c.date_candidature.split('/').reverse() : c.date_candidature.split('-');
+    const key = parts.join('-');
+    dayCounts[key] = (dayCounts[key] || 0) + 1;
+  });
+
+  // Build 52 weeks starting from 364 days ago → today
+  const startDay = new Date(today); startDay.setDate(today.getDate() - 363);
+  // Align to Monday
+  const dow = startDay.getDay(); // 0=Sun
+  startDay.setDate(startDay.getDate() - (dow === 0 ? 6 : dow - 1));
+
+  const days = [];
+  const cursor = new Date(startDay);
+  while (cursor <= today) {
+    const key = cursor.toISOString().split('T')[0];
+    days.push({ key, count: dayCounts[key] || 0, date: new Date(cursor) });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  const weeks = [];
+  for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
+
+  const maxCount = Math.max(...days.map(d => d.count), 1);
+  const getColor = (count) => {
+    if (!count) return 'var(--bg2)';
+    const t = count / maxCount;
+    if (t < 0.3) return 'rgba(124,58,237,0.25)';
+    if (t < 0.6) return 'rgba(124,58,237,0.55)';
+    if (t < 0.85) return 'rgba(124,58,237,0.8)';
+    return 'var(--purple)';
+  };
+
+  const MONTHS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+  const totalDays = days.filter(d => d.count > 0).length;
+  const totalCands = days.reduce((s, d) => s + d.count, 0);
+  const longestStreak = (() => {
+    let best = 0, cur = 0;
+    days.forEach(d => { if (d.count > 0) { cur++; best = Math.max(best, cur); } else cur = 0; });
+    return best;
+  })();
+
+  return (
+    <div className="heatmap-card">
+      <div className="heatmap-legend">
+        <div className="heatmap-stats">
+          <span><strong>{totalCands}</strong> candidatures</span>
+          <span><strong>{totalDays}</strong> jours actifs</span>
+          <span>Meilleure série : <strong>{longestStreak}j</strong></span>
+        </div>
+        <div className="heatmap-scale">
+          <span style={{fontSize:'0.68rem',color:'var(--muted)'}}>Moins</span>
+          {[0,0.25,0.55,0.8,1].map((t,i) => <div key={i} className="heatmap-scale-box" style={{background: t === 0 ? 'var(--bg2)' : `rgba(124,58,237,${t})`}} />)}
+          <span style={{fontSize:'0.68rem',color:'var(--muted)'}}>Plus</span>
+        </div>
+      </div>
+      <div className="heatmap-scroll">
+        <div className="heatmap-months-row">
+          {weeks.map((week, wi) => {
+            const m = week[0]?.date.getMonth();
+            const prev = weeks[wi-1]?.[0]?.date.getMonth();
+            return <div key={wi} className="heatmap-month-label">{m !== prev ? MONTHS[m] : ''}</div>;
+          })}
+        </div>
+        <div className="heatmap-grid">
+          {weeks.map((week, wi) => (
+            <div key={wi} className="heatmap-week">
+              {week.map(day => (
+                <div
+                  key={day.key}
+                  className="heatmap-day"
+                  style={{background: getColor(day.count)}}
+                  title={`${day.date.toLocaleDateString('fr-FR')} — ${day.count} candidature${day.count > 1 ? 's' : ''}`}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+        <div className="heatmap-days-label">
+          {['L','M','M','J','V','S','D'].map((d,i) => <div key={i} className="heatmap-day-label">{d}</div>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Stats() {
   const [list, setList] = useState([]);
   const [stats, setStats] = useState(null);
@@ -120,6 +210,34 @@ export default function Stats() {
         return acc + Math.floor((Date.now() - d.getTime()) / 86400000);
       }, 0) / responded.length)
     : null;
+
+  // Stats par tag
+  const tagStats = (() => {
+    const map = {};
+    list.forEach(c => {
+      const tags = (c.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+      tags.forEach(tag => {
+        if (!map[tag]) map[tag] = { total: 0, entretiens: 0 };
+        map[tag].total++;
+        if (c.statut === 'Entretien') map[tag].entretiens++;
+      });
+    });
+    return Object.entries(map).sort((a,b) => b[1].total - a[1].total).slice(0, 8);
+  })();
+  const maxTagCount = Math.max(...tagStats.map(([,v]) => v.total), 1);
+
+  // Rapport mensuel
+  const now2 = new Date();
+  const monthStart = new Date(now2.getFullYear(), now2.getMonth(), 1);
+  const prevMonthStart = new Date(now2.getFullYear(), now2.getMonth() - 1, 1);
+  const prevMonthEnd = new Date(now2.getFullYear(), now2.getMonth(), 0);
+  const parseDate = (s) => { if (!s) return null; const p = s.includes('/') ? s.split('/').reverse() : s.split('-'); const d = new Date(p.join('-')); return isNaN(d) ? null : d; };
+  const inMonth = (d, start, end) => d && d >= start && d <= end;
+  const thisMCands = list.filter(c => inMonth(parseDate(c.date_candidature), monthStart, now2));
+  const prevMCands = list.filter(c => inMonth(parseDate(c.date_candidature), prevMonthStart, prevMonthEnd));
+  const thisMEntretiens = thisMCands.filter(c => c.statut === 'Entretien').length;
+  const prevMEntretiens = prevMCands.filter(c => c.statut === 'Entretien').length;
+  const delta = thisMCands.length - prevMCands.length;
 
   // Conversion par source (entretiens obtenus)
   const sourceConv = Object.entries(bySource).map(([source, total]) => {
@@ -355,6 +473,62 @@ export default function Stats() {
               )}
             </div>
           )}
+        </div>
+
+        {tagStats.length > 0 && (
+          <div className="card">
+            <h2 className="card-title">🏷️ Stats par tag</h2>
+            <div className="bar-chart">
+              {tagStats.map(([tag, { total, entretiens }]) => (
+                <div className="bar-row" key={tag}>
+                  <div className="bar-label">{tag}</div>
+                  <div className="bar-wrap">
+                    <div className="bar-fill" style={{width:`${(total/maxTagCount)*100}%`, background:'linear-gradient(90deg,var(--accent),var(--accent2))'}} />
+                  </div>
+                  <div className="bar-count">
+                    {total} <span style={{fontSize:'0.68rem',color:'var(--muted)',marginLeft:4}}>{entretiens>0?`(${entretiens} 🎯)`:''}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="card stats-heatmap-card">
+        <h2 className="card-title">📅 Activité — 12 derniers mois</h2>
+        <ActivityHeatmap list={list} />
+      </div>
+
+      <div className="card stats-monthly-card">
+        <h2 className="card-title">📋 Rapport du mois en cours</h2>
+        <div className="monthly-grid">
+          <div className="monthly-stat">
+            <div className="monthly-num" style={{color:'var(--purple)'}}>{thisMCands.length}</div>
+            <div className="monthly-label">Candidatures ce mois</div>
+            <div className={`monthly-delta ${delta > 0 ? 'delta-up' : delta < 0 ? 'delta-down' : ''}`}>
+              {delta > 0 ? `▲ +${delta}` : delta < 0 ? `▼ ${delta}` : '= ±0'} vs mois dernier ({prevMCands.length})
+            </div>
+          </div>
+          <div className="monthly-stat">
+            <div className="monthly-num" style={{color:'var(--green)'}}>{thisMEntretiens}</div>
+            <div className="monthly-label">Entretiens obtenus</div>
+            <div className="monthly-delta">{prevMEntretiens > 0 ? `vs ${prevMEntretiens} le mois dernier` : 'Aucun le mois dernier'}</div>
+          </div>
+          <div className="monthly-stat">
+            <div className="monthly-num" style={{color:'var(--orange)'}}>
+              {thisMCands.length > 0 ? ((thisMEntretiens/thisMCands.length)*100).toFixed(0) : 0}%
+            </div>
+            <div className="monthly-label">Taux conversion</div>
+            <div className="monthly-delta">entretiens / candidatures</div>
+          </div>
+          <div className="monthly-stat">
+            <div className="monthly-num" style={{color:'var(--blue)'}}>
+              {thisMCands.length > 0 ? (thisMCands.length / Math.max(new Date().getDate(), 1) * 7).toFixed(1) : 0}
+            </div>
+            <div className="monthly-label">Rythme / semaine</div>
+            <div className="monthly-delta">estimé sur le mois</div>
+          </div>
         </div>
       </div>
     </div>

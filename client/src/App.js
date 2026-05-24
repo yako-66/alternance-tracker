@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Dashboard from './pages/Dashboard';
 import Candidatures from './pages/Candidatures';
 import Detail from './pages/Detail';
@@ -7,6 +7,8 @@ import Settings from './pages/Settings';
 import MapGlobale from './pages/MapGlobale';
 import Calendar from './pages/Calendar';
 import GlobalTimeline from './pages/GlobalTimeline';
+import Comparateur from './pages/Comparateur';
+import PrepEntretien from './pages/PrepEntretien';
 import { api } from './hooks/api';
 import './App.css';
 
@@ -101,6 +103,80 @@ function GlobalSearch({ navigate, onClose }) {
   );
 }
 
+function Pomodoro({ onClose }) {
+  const MODES = { work: 25 * 60, short: 5 * 60, long: 15 * 60 };
+  const LABELS = { work: '🍅 Focus', short: '☕ Pause', long: '🛋️ Grande pause' };
+  const [mode, setMode] = useState('work');
+  const [seconds, setSeconds] = useState(MODES.work);
+  const [running, setRunning] = useState(false);
+  const [cycles, setCycles] = useState(0);
+  const intervalRef = useRef(null);
+
+  const reset = useCallback((m = mode) => {
+    clearInterval(intervalRef.current);
+    setRunning(false);
+    setSeconds(MODES[m]);
+  }, [mode]);
+
+  const changeMode = (m) => { setMode(m); reset(m); setSeconds(MODES[m]); };
+
+  useEffect(() => {
+    if (running) {
+      intervalRef.current = setInterval(() => {
+        setSeconds(s => {
+          if (s <= 1) {
+            clearInterval(intervalRef.current);
+            setRunning(false);
+            if (mode === 'work') { setCycles(c => c + 1); try { new Notification('🍅 Pomodoro terminé !', { body: 'Temps de faire une pause.', icon:'/favicon.ico' }); } catch {} }
+            return 0;
+          }
+          return s - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(intervalRef.current);
+  }, [running, mode]);
+
+  const mins = String(Math.floor(seconds / 60)).padStart(2, '0');
+  const secs = String(seconds % 60).padStart(2, '0');
+  const total = MODES[mode];
+  const pct = ((total - seconds) / total) * 100;
+  const r = 44, circ = 2 * Math.PI * r;
+
+  return (
+    <div className="pomodoro-panel">
+      <div className="pomodoro-header">
+        <span className="pomodoro-title">⏱️ Pomodoro</span>
+        <span className="pomodoro-cycles">{cycles} 🍅</span>
+        <button className="qnotes-close" onClick={onClose}>✕</button>
+      </div>
+      <div className="pomodoro-modes">
+        {Object.keys(MODES).map(m => (
+          <button key={m} className={`pomodoro-mode-btn ${mode === m ? 'active' : ''}`} onClick={() => changeMode(m)}>{LABELS[m]}</button>
+        ))}
+      </div>
+      <div className="pomodoro-ring-wrap">
+        <svg viewBox="0 0 100 100" className="pomodoro-ring">
+          <circle cx="50" cy="50" r={r} fill="none" stroke="var(--bg2)" strokeWidth="7" />
+          <circle cx="50" cy="50" r={r} fill="none" stroke="var(--purple)" strokeWidth="7"
+            strokeLinecap="round"
+            strokeDasharray={`${(pct/100)*circ} ${circ}`}
+            transform="rotate(-90 50 50)"
+            style={{transition:'stroke-dasharray 0.9s ease'}}
+          />
+        </svg>
+        <div className="pomodoro-time">{mins}:{secs}</div>
+      </div>
+      <div className="pomodoro-controls">
+        <button className="pomodoro-btn" onClick={() => setRunning(r => !r)}>
+          {running ? '⏸ Pause' : '▶ Démarrer'}
+        </button>
+        <button className="pomodoro-btn pomodoro-btn-reset" onClick={() => reset()}>↺ Reset</button>
+      </div>
+    </div>
+  );
+}
+
 function QuickNotes({ onClose }) {
   const [notes, setNotes] = useState(() => localStorage.getItem('quick_notes') || '');
   const [saved, setSaved] = useState(false);
@@ -154,6 +230,7 @@ export default function App() {
   });
   const [showSearch, setShowSearch] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  const [showPomodoro, setShowPomodoro] = useState(false);
 
   // Sync theme to DOM + localStorage
   useEffect(() => {
@@ -175,6 +252,42 @@ export default function App() {
   useEffect(() => {
     const color = localStorage.getItem('accent_color');
     if (color) document.documentElement.style.setProperty('--purple', color);
+  }, []);
+
+  // Check rappels + auto-archive on startup
+  useEffect(() => {
+    api.get('/api/candidatures').then(all => {
+      // Rappels personnalisés
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        const today = new Date(); today.setHours(0,0,0,0);
+        const todayStr = today.toISOString().split('T')[0];
+        all.forEach(c => {
+          if (!c.date_rappel || c.archived) return;
+          const rappelKey = `rappel_notif_${c.id}_${c.date_rappel}`;
+          if (localStorage.getItem(rappelKey)) return;
+          const parts = c.date_rappel.includes('/') ? c.date_rappel.split('/').reverse() : c.date_rappel.split('-');
+          const rd = new Date(parts.join('-')); rd.setHours(0,0,0,0);
+          if (rd.getTime() === today.getTime()) {
+            try {
+              new Notification(`🔔 Rappel — ${c.entreprise}`, { body: `N'oublie pas de relancer ${c.entreprise} (${c.poste || 'candidature'})`, icon:'/favicon.ico' });
+              localStorage.setItem(rappelKey, todayStr);
+            } catch {}
+          }
+        });
+      }
+      // Auto-archivage au démarrage
+      if (localStorage.getItem('auto_archive') === '1') {
+        const days = parseInt(localStorage.getItem('auto_archive_days') || '30');
+        const threshold = new Date(); threshold.setDate(threshold.getDate() - days);
+        const toArchive = all.filter(c => {
+          if (c.archived || !['Postulé','En attente'].includes(c.statut) || !c.date_candidature) return false;
+          const parts = c.date_candidature.includes('/') ? c.date_candidature.split('/').reverse() : c.date_candidature.split('-');
+          const d = new Date(parts.join('-'));
+          return !isNaN(d) && d < threshold;
+        });
+        toArchive.forEach(c => api.put(`/api/candidatures/${c.id}`, {...c, archived: 1}));
+      }
+    }).catch(() => {});
   }, []);
 
   // Keyboard shortcuts
@@ -200,6 +313,8 @@ export default function App() {
     { id:'calendrier',   label:'Calendrier',   icon:'📅' },
     { id:'stats',        label:'Stats',        icon:'📈' },
     { id:'timeline',     label:'Timeline',     icon:'🕐' },
+    { id:'comparateur',  label:'Comparer',     icon:'⚖️' },
+    { id:'prep',         label:'Entretien',    icon:'🎤' },
   ];
 
   const isActive = (id) => {
@@ -211,6 +326,7 @@ export default function App() {
     <div className="app">
       {showSearch && <GlobalSearch navigate={navigate} onClose={() => setShowSearch(false)} />}
       {showNotes && <QuickNotes onClose={() => setShowNotes(false)} />}
+      {showPomodoro && <Pomodoro onClose={() => setShowPomodoro(false)} />}
 
       <nav className="navbar">
         <div className="nav-brand" onClick={() => navigate('dashboard')}>
@@ -248,6 +364,8 @@ export default function App() {
         {page === 'carte'        && <MapGlobale navigate={navigate} />}
         {page === 'calendrier'   && <Calendar navigate={navigate} />}
         {page === 'timeline'     && <GlobalTimeline navigate={navigate} />}
+        {page === 'comparateur'  && <Comparateur navigate={navigate} />}
+        {page === 'prep'         && <PrepEntretien navigate={navigate} />}
       </main>
 
       <nav className="bottom-nav">
@@ -269,14 +387,11 @@ export default function App() {
         </button>
       </nav>
 
-      {/* Notes rapides FAB */}
-      <button
-        className={`qnotes-fab ${showNotes ? 'qnotes-fab-active' : ''}`}
-        onClick={() => setShowNotes(s => !s)}
-        title="Notes rapides"
-      >
-        📝
-      </button>
+      {/* FABs */}
+      <div className="fab-group">
+        <button className={`qnotes-fab fab-pomodoro ${showPomodoro ? 'qnotes-fab-active' : ''}`} onClick={() => { setShowPomodoro(s => !s); setShowNotes(false); }} title="Pomodoro">⏱️</button>
+        <button className={`qnotes-fab ${showNotes ? 'qnotes-fab-active' : ''}`} onClick={() => { setShowNotes(s => !s); setShowPomodoro(false); }} title="Notes rapides">📝</button>
+      </div>
     </div>
   );
 }

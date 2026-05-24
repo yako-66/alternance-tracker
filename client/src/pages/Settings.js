@@ -25,6 +25,9 @@ export default function Settings() {
   const [resetStatus, setResetStatus] = useState('');
   const [notifPerm, setNotifPerm] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'denied');
   const [accentColor, setAccentColor] = useState(() => localStorage.getItem('accent_color') || '#7C3AED');
+  const [autoArchive, setAutoArchive] = useState(() => localStorage.getItem('auto_archive') === '1');
+  const [autoArchiveDays, setAutoArchiveDays] = useState(() => parseInt(localStorage.getItem('auto_archive_days') || '30'));
+  const [autoArchiveStatus, setAutoArchiveStatus] = useState('');
   const [toast, setToast] = useState('');
   const restoreRef = useRef(null);
 
@@ -35,6 +38,31 @@ export default function Settings() {
     localStorage.setItem('accent_color', color);
     document.documentElement.style.setProperty('--purple', color);
     showToast('🎨 Couleur appliquée !');
+  };
+
+  const saveAutoArchive = (enabled, days) => {
+    localStorage.setItem('auto_archive', enabled ? '1' : '0');
+    localStorage.setItem('auto_archive_days', String(days));
+    setAutoArchive(enabled);
+    setAutoArchiveDays(days);
+    showToast(enabled ? `✅ Auto-archivage activé (${days} jours)` : '✅ Auto-archivage désactivé');
+  };
+
+  const runAutoArchiveNow = async () => {
+    const all = await api.get('/api/candidatures');
+    const threshold = new Date();
+    threshold.setDate(threshold.getDate() - autoArchiveDays);
+    const toArchive = all.filter(c => {
+      if (c.archived || !['Postulé','En attente'].includes(c.statut)) return false;
+      if (!c.date_candidature) return false;
+      const parts = c.date_candidature.includes('/') ? c.date_candidature.split('/').reverse() : c.date_candidature.split('-');
+      const d = new Date(parts.join('-'));
+      return !isNaN(d) && d < threshold;
+    });
+    for (const c of toArchive) await api.put(`/api/candidatures/${c.id}`, {...c, archived: 1});
+    setAutoArchiveStatus(`✅ ${toArchive.length} candidature(s) archivée(s) automatiquement`);
+    setTimeout(() => setAutoArchiveStatus(''), 5000);
+    showToast(`📦 ${toArchive.length} candidature(s) archivée(s)`);
   };
 
   const resetAccent = () => {
@@ -288,6 +316,33 @@ export default function Settings() {
               </button>
               {importStatus && <span className="import-status">{importStatus}</span>}
             </div>
+          </div>
+        </div>
+
+        {/* AUTO-ARCHIVAGE */}
+        <div className="settings-card">
+          <h2 className="settings-section-title">📦 Auto-archivage</h2>
+          <div className="settings-actions">
+            <div className="settings-action-item">
+              <div>
+                <div className="settings-action-title">Archiver automatiquement</div>
+                <div className="settings-action-desc">Archive les candidatures en "Postulé" ou "En attente" sans réponse depuis trop longtemps.</div>
+              </div>
+              <label className="toggle-switch">
+                <input type="checkbox" checked={autoArchive} onChange={e => saveAutoArchive(e.target.checked, autoArchiveDays)} />
+                <span className="toggle-slider" />
+              </label>
+            </div>
+            {autoArchive && (
+              <div className="settings-action-item">
+                <div>
+                  <div className="settings-action-title">Délai sans réponse</div>
+                  <div className="settings-action-desc">Archiver après <input type="number" min="7" max="180" value={autoArchiveDays} onChange={e => saveAutoArchive(autoArchive, parseInt(e.target.value)||30)} className="inline-number-input" /> jours.</div>
+                </div>
+                <button className="btn-settings-action" onClick={runAutoArchiveNow}>▶ Lancer maintenant</button>
+              </div>
+            )}
+            {autoArchiveStatus && <div className="settings-status" style={{color:'var(--green)'}}>{autoArchiveStatus}</div>}
           </div>
         </div>
 

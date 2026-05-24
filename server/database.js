@@ -94,6 +94,10 @@ async function getDb() {
   try { db.run("ALTER TABLE candidatures ADD COLUMN date_entretien TEXT DEFAULT ''"); save(); } catch(e) {}
   try { db.run('ALTER TABLE candidatures ADD COLUMN archived INTEGER DEFAULT 0'); save(); } catch(e) {}
   try { db.run("ALTER TABLE candidatures ADD COLUMN tags TEXT DEFAULT ''"); save(); } catch(e) {}
+  try { db.run("ALTER TABLE candidatures ADD COLUMN salaire TEXT DEFAULT ''"); save(); } catch(e) {}
+  try { db.run("ALTER TABLE candidatures ADD COLUMN secteur TEXT DEFAULT ''"); save(); } catch(e) {}
+  try { db.run("ALTER TABLE candidatures ADD COLUMN taille TEXT DEFAULT ''"); save(); } catch(e) {}
+  try { db.run("ALTER TABLE candidatures ADD COLUMN date_rappel TEXT DEFAULT ''"); save(); } catch(e) {}
 
   // Migration : renseigne localisation pour les entrées existantes qui l'ont vide
   const migrations = [

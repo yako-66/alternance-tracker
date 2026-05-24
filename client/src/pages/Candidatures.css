@@ -284,6 +284,13 @@
 .form-group.full { grid-column:1/-1; }
 .form-group label { font-size:0.75rem; font-weight:600; color:var(--text2); letter-spacing:0.01em; }
 
+.doublon-warning {
+  font-size:0.75rem; font-weight:600; color:#F59E0B;
+  background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.25);
+  border-radius:6px; padding:5px 10px; margin-top:2px;
+  animation:fadeIn 0.2s;
+}
+
 /* ── Toast ── */
 .toast {
   position:fixed; bottom:90px; left:50%; transform:translateX(-50%);

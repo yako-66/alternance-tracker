@@ -105,7 +105,10 @@ const STATUT_COLORS = {
 };
 const FOCUS_EXCLUDE = ['Refus','Sans suite'];
 
-const empty = { entreprise:'', poste:'', source:'', date_candidature:'', contact:'', statut:'Postulé', notes:'', localisation:'', priorite:0, score:0, date_entretien:'', archived:0, tags:'' };
+const SECTEURS = ['','Informatique / IT','Cloud / Infra','Cybersécurité','Développement','Data / IA','Finance / Banque','Assurance','Industrie','Énergie','Santé','Commerce / Distribution','Conseil','Télécom','Transport / Logistique','Autre'];
+const TAILLES = ['','< 10 salariés','10-50 salariés','50-250 salariés','250-1000 salariés','> 1000 salariés'];
+
+const empty = { entreprise:'', poste:'', source:'', date_candidature:'', contact:'', statut:'Postulé', notes:'', localisation:'', priorite:0, score:0, date_entretien:'', archived:0, tags:'', salaire:'', secteur:'', taille:'', date_rappel:'' };
 
 function daysSince(dateStr) {
   if (!dateStr) return null;
@@ -234,8 +237,17 @@ export default function Candidatures({ navigate }) {
     showToast('📥 Export CSV téléchargé !');
   };
 
-  const openAdd = () => { setEditing(null); setForm({...empty, date_candidature: new Date().toISOString().split('T')[0]}); setShowModal(true); };
-  const openEdit = (c, e) => { e.stopPropagation(); setEditing(c); setForm({...c, priorite:c.priorite||0, score:c.score||0, tags:c.tags||'', archived:c.archived||0}); setShowModal(true); };
+  const [doublonWarning, setDoublonWarning] = useState('');
+
+  const checkDoublon = (nom) => {
+    if (!nom.trim()) { setDoublonWarning(''); return; }
+    const q = nom.trim().toLowerCase();
+    const found = list.find(c => c.entreprise?.toLowerCase() === q && (!editing || c.id !== editing.id));
+    setDoublonWarning(found ? `⚠️ "${found.entreprise}" existe déjà (${found.statut})` : '');
+  };
+
+  const openAdd = () => { setEditing(null); setDoublonWarning(''); setForm({...empty, date_candidature: new Date().toISOString().split('T')[0]}); setShowModal(true); };
+  const openEdit = (c, e) => { e.stopPropagation(); setEditing(c); setDoublonWarning(''); setForm({...c, priorite:c.priorite||0, score:c.score||0, tags:c.tags||'', archived:c.archived||0, salaire:c.salaire||'', secteur:c.secteur||'', taille:c.taille||'', date_rappel:c.date_rappel||''}); setShowModal(true); };
   const duplicate = (c, e) => {
     e.stopPropagation();
     setEditing(null);
@@ -664,7 +676,8 @@ export default function Candidatures({ navigate }) {
           <div className="form-grid">
             <div className="form-group full">
               <label>Entreprise *</label>
-              <input value={form.entreprise} onChange={e => setForm({...form, entreprise:e.target.value})} placeholder="Ex: CAPGEMINI" autoFocus />
+              <input value={form.entreprise} onChange={e => { setForm({...form, entreprise:e.target.value}); checkDoublon(e.target.value); }} placeholder="Ex: CAPGEMINI" autoFocus />
+              {doublonWarning && <div className="doublon-warning">{doublonWarning}</div>}
             </div>
             <div className="form-group full">
               <label>Poste</label>
@@ -693,6 +706,26 @@ export default function Candidatures({ navigate }) {
             <div className="form-group">
               <label>Tags</label>
               <input value={form.tags||''} onChange={e => setForm({...form, tags:e.target.value})} placeholder="Ex: cloud, stage, CDI (séparés par des virgules)" />
+            </div>
+            <div className="form-group">
+              <label>Salaire / Indemnité</label>
+              <input value={form.salaire||''} onChange={e => setForm({...form, salaire:e.target.value})} placeholder="Ex: 900 €/mois" />
+            </div>
+            <div className="form-group">
+              <label>Secteur</label>
+              <select value={form.secteur||''} onChange={e => setForm({...form, secteur:e.target.value})}>
+                {SECTEURS.map(s => <option key={s} value={s}>{s || 'Sélectionner…'}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Taille de l'entreprise</label>
+              <select value={form.taille||''} onChange={e => setForm({...form, taille:e.target.value})}>
+                {TAILLES.map(s => <option key={s} value={s}>{s || 'Sélectionner…'}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Date de rappel</label>
+              <input type="date" value={form.date_rappel||''} onChange={e => setForm({...form, date_rappel:e.target.value})} />
             </div>
             <div className="form-group full">
               <label>Statut</label>
