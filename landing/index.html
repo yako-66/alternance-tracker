@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AlternanceTracker — Trouve ton alternance plus vite, avec méthode.</title>
+  <meta name="description" content="L'outil tout-en-un pour piloter ta recherche d'alternance : suivi des candidatures, coach IA, statistiques, rappels automatiques. Rejoins la liste d'attente." />
+  <meta property="og:title" content="AlternanceTracker — Trouve ton alternance plus vite" />
+  <meta property="og:description" content="Fini le tableau Excel. Pilote tes candidatures, analyse tes stats, et laisse le Coach IA t'aider à décrocher ton alternance." />
+  <meta property="og:type" content="website" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ── Navbar ── -->
+  <nav class="nav">
+    <div class="nav-inner">
+      <div class="nav-brand">
+        <div class="nav-logo">⚡</div>
+        <span class="nav-name">AlternanceTracker</span>
+      </div>
+      <div class="nav-links">
+        <a href="#features">Fonctionnalités</a>
+        <a href="#pricing">Tarifs</a>
+        <a href="#faq">FAQ</a>
+      </div>
+      <a href="#waitlist" class="btn btn-nav">Rejoindre la liste →</a>
+    </div>
+  </nav>
+
+  <!-- ── Hero ── -->
+  <section class="hero">
+    <div class="hero-badge">🚀 Bientôt disponible — Rejoins la liste d'attente</div>
+    <h1 class="hero-title">
+      Trouve ton alternance<br />
+      <span class="gradient-text">plus vite, avec méthode.</span>
+    </h1>
+    <p class="hero-subtitle">
+      Fini le tableau Excel et les relances oubliées. AlternanceTracker centralise toutes tes candidatures, t'envoie des rappels intelligents et te connecte à un Coach IA qui analyse ta stratégie en temps réel.
+    </p>
+    <form class="hero-form" action="https://formspree.io/f/REMPLACE_PAR_TON_ID" method="POST">
+      <input type="email" name="email" placeholder="ton@email.com" required class="hero-input" />
+      <button type="submit" class="btn btn-hero">Je veux accès en avant-première ✨</button>
+    </form>
+    <p class="hero-hint">Gratuit pendant la bêta · Aucune carte bancaire</p>
+
+    <div class="hero-mockup">
+      <div class="mockup-bar">
+        <span class="mockup-dot red"></span>
+        <span class="mockup-dot yellow"></span>
+        <span class="mockup-dot green"></span>
+        <span class="mockup-url">alternancetracker.app</span>
+      </div>
+      <div class="mockup-screen">
+        <div class="mockup-sidebar">
+          <div class="mockup-nav-item active">📊 Dashboard</div>
+          <div class="mockup-nav-item">📋 Candidatures</div>
+          <div class="mockup-nav-item">🗺️ Carte</div>
+          <div class="mockup-nav-item">📈 Stats</div>
+          <div class="mockup-nav-item">⚖️ Comparer</div>
+          <div class="mockup-nav-item">🎤 Entretien</div>
+        </div>
+        <div class="mockup-content">
+          <div class="mockup-kpis">
+            <div class="mockup-kpi"><div class="mockup-kpi-val">24</div><div class="mockup-kpi-label">Candidatures</div></div>
+            <div class="mockup-kpi green"><div class="mockup-kpi-val">5</div><div class="mockup-kpi-label">Entretiens</div></div>
+            <div class="mockup-kpi purple"><div class="mockup-kpi-val">21%</div><div class="mockup-kpi-label">Taux conv.</div></div>
+            <div class="mockup-kpi orange"><div class="mockup-kpi-val">7j</div><div class="mockup-kpi-label">Série</div></div>
+          </div>
+          <div class="mockup-cards">
+            <div class="mockup-card"><div class="mockup-card-avatar">C</div><div class="mockup-card-info"><div class="mockup-card-name">Capgemini</div><div class="mockup-card-post">Alternant DevOps</div></div><div class="mockup-card-badge green">Entretien</div></div>
+            <div class="mockup-card"><div class="mockup-card-avatar">S</div><div class="mockup-card-info"><div class="mockup-card-name">Société Générale</div><div class="mockup-card-post">Alternant IT</div></div><div class="mockup-card-badge yellow">En attente</div></div>
+            <div class="mockup-card"><div class="mockup-card-avatar">A</div><div class="mockup-card-info"><div class="mockup-card-name">Accenture</div><div class="mockup-card-post">Alternant Cloud</div></div><div class="mockup-card-badge blue">Postulé</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-stats">
+      <div class="hero-stat"><span class="hero-stat-val">2× plus</span><span class="hero-stat-label">de relances effectuées</span></div>
+      <div class="hero-stat-sep"></div>
+      <div class="hero-stat"><span class="hero-stat-val">0 oubli</span><span class="hero-stat-label">grâce aux rappels auto</span></div>
+      <div class="hero-stat-sep"></div>
+      <div class="hero-stat"><span class="hero-stat-val">Coach IA</span><span class="hero-stat-label">disponible 24h/24</span></div>
+    </div>
+  </section>
+
+  <!-- ── Features ── -->
+  <section class="features" id="features">
+    <div class="section-inner">
+      <div class="section-badge">Fonctionnalités</div>
+      <h2 class="section-title">Tout ce dont tu as besoin,<br /><span class="gradient-text">au même endroit.</span></h2>
+      <p class="section-sub">Conçu spécifiquement pour les étudiants en recherche d'alternance en France.</p>
+
+      <div class="features-grid">
+
+        <div class="feature-card feature-card-large">
+          <div class="feature-icon">🤖</div>
+          <h3>Coach IA personnalisé</h3>
+          <p>Ton assistant propulsé par Claude AI analyse tes candidatures en temps réel et te donne des conseils actionnables : quoi relancer, où concentrer tes efforts, comment améliorer ton taux d'entretien.</p>
+          <div class="feature-chat-preview">
+            <div class="chat-bubble assistant">👋 Tu as 3 candidatures sans réponse depuis +10 jours. Je te recommande de relancer Capgemini en priorité.</div>
+            <div class="chat-bubble user">Comment améliorer mon taux d'entretien ?</div>
+            <div class="chat-bubble assistant">Ton taux est de 21%. La moyenne est à 15%. Continue sur LinkedIn et diversifie avec Indeed !</div>
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">✨</div>
+          <h3>Parse d'offre auto</h3>
+          <p>Colle le texte d'une offre LinkedIn ou Indeed — l'IA remplit automatiquement tous les champs du formulaire.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">📝</div>
+          <h3>Lettre de motivation IA</h3>
+          <p>Génère une lettre personnalisée en 10 secondes, adaptée à chaque poste et entreprise.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🎤</div>
+          <h3>Simulation d'entretien</h3>
+          <p>Entraîne-toi avec un recruteur virtuel avant chaque entretien. L'IA joue le RH et te donne du feedback.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">📊</div>
+          <h3>Dashboard & Stats avancées</h3>
+          <p>Taux de conversion, heatmap GitHub-style, stats par tag et par secteur, prédictions. Comprends ce qui marche.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">⚖️</div>
+          <h3>Comparateur d'offres</h3>
+          <p>Compare jusqu'à 3 offres côte-à-côte sur tous les critères : salaire, secteur, localisation, score.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🗺️</div>
+          <h3>Carte interactive</h3>
+          <p>Visualise toutes tes candidatures sur une carte. Filtre par statut, identifie les zones géographiques à cibler.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🔔</div>
+          <h3>Rappels personnalisés</h3>
+          <p>Reçois une notification le jour J pour relancer. Plus jamais une candidature oubliée.</p>
+        </div>
+
+        <div class="feature-card feature-card-large">
+          <div class="feature-icon">🎁</div>
+          <h3>Wrapped annuel</h3>
+          <p>À la fin de l'année, un bilan animé style Spotify Wrapped de ta recherche d'alternance. Partage-le, sois fier du chemin parcouru.</p>
+          <div class="wrapped-preview">
+            <div class="wrapped-slide-preview" style="--bg:linear-gradient(135deg,#7C3AED,#9C27B0)">
+              <div class="wsp-emoji">📋</div>
+              <div class="wsp-val">24</div>
+              <div class="wsp-label">candidatures envoyées</div>
+            </div>
+            <div class="wrapped-slide-preview" style="--bg:linear-gradient(135deg,#10B981,#059669)">
+              <div class="wsp-emoji">🎤</div>
+              <div class="wsp-val">5</div>
+              <div class="wsp-label">entretiens décrochés</div>
+            </div>
+            <div class="wrapped-slide-preview" style="--bg:linear-gradient(135deg,#F59E0B,#EF4444)">
+              <div class="wsp-emoji">📅</div>
+              <div class="wsp-val">Mars</div>
+              <div class="wsp-label">ton mois le plus actif</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── How it works ── -->
+  <section class="how">
+    <div class="section-inner">
+      <div class="section-badge">Comment ça marche</div>
+      <h2 class="section-title">Opérationnel en <span class="gradient-text">30 secondes.</span></h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <h3>Crée ton compte</h3>
+          <p>Inscription en 30 secondes. Aucune carte bancaire requise pour commencer.</p>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <h3>Ajoute tes candidatures</h3>
+          <p>Manuellement ou en collant le texte d'une offre — l'IA remplit tout automatiquement.</p>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <h3>Laisse le Coach t'aider</h3>
+          <p>Rappels, analyse de stratégie, lettre de motivation — tout est là pour toi.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Pricing ── -->
+  <section class="pricing" id="pricing">
+    <div class="section-inner">
+      <div class="section-badge">Tarifs</div>
+      <h2 class="section-title">Simple et <span class="gradient-text">accessible.</span></h2>
+      <p class="section-sub">On sait que t'es étudiant. Les prix sont faits pour toi.</p>
+
+      <div class="pricing-grid">
+        <div class="pricing-card">
+          <div class="pricing-name">Gratuit</div>
+          <div class="pricing-price">0€<span>/mois</span></div>
+          <div class="pricing-desc">Pour commencer ta recherche</div>
+          <ul class="pricing-features">
+            <li>✅ Jusqu'à 15 candidatures</li>
+            <li>✅ Vue liste, kanban, tableau</li>
+            <li>✅ Dashboard & stats de base</li>
+            <li>✅ Rappels personnalisés</li>
+            <li>✅ Import/export CSV</li>
+            <li>❌ Coach IA</li>
+            <li>❌ Parse d'offre auto</li>
+            <li>❌ Lettre de motivation IA</li>
+            <li>❌ Simulation d'entretien</li>
+          </ul>
+          <a href="#waitlist" class="btn btn-outline">Rejoindre la liste →</a>
+        </div>
+
+        <div class="pricing-card pricing-card-pro">
+          <div class="pricing-popular">⭐ Le plus populaire</div>
+          <div class="pricing-name">Pro</div>
+          <div class="pricing-price">4,99€<span>/mois</span></div>
+          <div class="pricing-desc">Pour décrocher ton alternance</div>
+          <ul class="pricing-features">
+            <li>✅ Candidatures illimitées</li>
+            <li>✅ Tout du plan gratuit</li>
+            <li>✅ Coach IA illimité</li>
+            <li>✅ Parse d'offre automatique</li>
+            <li>✅ Génération de lettres IA</li>
+            <li>✅ Simulation d'entretien</li>
+            <li>✅ Stats avancées & heatmap</li>
+            <li>✅ Wrapped annuel</li>
+            <li>✅ Lien de partage</li>
+          </ul>
+          <a href="#waitlist" class="btn btn-pro">Accès bêta gratuit →</a>
+        </div>
+
+        <div class="pricing-card">
+          <div class="pricing-name">École / CFA</div>
+          <div class="pricing-price">Sur devis</div>
+          <div class="pricing-desc">Pour vos étudiants en masse</div>
+          <ul class="pricing-features">
+            <li>✅ Licences en volume</li>
+            <li>✅ Dashboard conseiller</li>
+            <li>✅ Suivi des cohortes</li>
+            <li>✅ Export reporting</li>
+            <li>✅ Support dédié</li>
+            <li>✅ Intégration SSO</li>
+            <li>✅ Marque blanche possible</li>
+          </ul>
+          <a href="mailto:contact@alternancetracker.app" class="btn btn-outline">Nous contacter →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FAQ ── -->
+  <section class="faq" id="faq">
+    <div class="section-inner section-inner-narrow">
+      <div class="section-badge">FAQ</div>
+      <h2 class="section-title">Questions <span class="gradient-text">fréquentes.</span></h2>
+
+      <div class="faq-list">
+        <details class="faq-item">
+          <summary>C'est quoi exactement AlternanceTracker ?</summary>
+          <p>C'est un outil de suivi de candidatures spécialement conçu pour les étudiants qui cherchent une alternance en France. Tu centralises toutes tes candidatures, tu reçois des rappels, tu accèdes à des stats détaillées et à un Coach IA qui t'aide à affiner ta stratégie.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Pourquoi pas juste un Excel ?</summary>
+          <p>Un Excel ne t'envoie pas de notifications, ne génère pas de lettres de motivation, ne t'analyse pas ta stratégie, ne te montre pas une heatmap de ton activité et ne te prépare pas aux entretiens. AlternanceTracker fait tout ça — et il est accessible sur mobile.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Le Coach IA, c'est quoi concrètement ?</summary>
+          <p>C'est un assistant propulsé par Claude (Anthropic) qui connaît toutes tes candidatures. Tu peux lui demander : "Quelles entreprises je devrais relancer ?", "Analyse ma stratégie", "Rédige-moi une lettre pour ce poste". Il répond en fonction de tes données réelles.</p>
+        </details>
+        <details class="faq-item">
+          <summary>C'est disponible quand ?</summary>
+          <p>On est en phase de bêta. En rejoignant la liste d'attente, tu seras parmi les premiers à avoir accès — gratuitement pendant toute la période bêta.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Mes données sont-elles sécurisées ?</summary>
+          <p>Tes candidatures sont stockées sur des serveurs sécurisés, accessibles uniquement avec ton compte. On ne vend aucune donnée à des tiers.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Ça marche pour la recherche de stage aussi ?</summary>
+          <p>Oui ! L'outil est conçu pour l'alternance mais fonctionne parfaitement pour n'importe quelle recherche d'emploi ou de stage.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Waitlist CTA ── -->
+  <section class="waitlist" id="waitlist">
+    <div class="section-inner section-inner-narrow">
+      <div class="waitlist-card">
+        <div class="waitlist-emoji">🎯</div>
+        <h2>Sois parmi les premiers.</h2>
+        <p>Rejoins la liste d'attente et accède gratuitement à AlternanceTracker dès le lancement de la bêta. Aucune carte bancaire requise.</p>
+        <form class="waitlist-form" action="https://formspree.io/f/REMPLACE_PAR_TON_ID" method="POST">
+          <input type="text" name="name" placeholder="Ton prénom" required />
+          <input type="email" name="email" placeholder="ton@email.com" required />
+          <select name="profile">
+            <option value="">Tu es... (optionnel)</option>
+            <option value="lyceen">Lycéen (bac pro / bac techno)</option>
+            <option value="bts">BTS / BUT</option>
+            <option value="licence">Licence</option>
+            <option value="master">Master / Grande école</option>
+          </select>
+          <button type="submit" class="btn btn-waitlist">Je rejoins la liste d'attente ✨</button>
+        </form>
+        <p class="waitlist-hint">Déjà <strong>bientôt 100 personnes</strong> sur la liste · Gratuit pendant la bêta</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Footer ── -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <div class="nav-logo">⚡</div>
+        <span class="nav-name">AlternanceTracker</span>
+      </div>
+      <div class="footer-links">
+        <a href="#">Mentions légales</a>
+        <a href="#">Confidentialité</a>
+        <a href="mailto:contact@alternancetracker.app">Contact</a>
+      </div>
+      <p class="footer-copy">© 2026 AlternanceTracker. Fait avec ❤️ en France.</p>
+    </div>
+  </footer>
+
+  <script>
+    // Smooth scroll
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+      a.addEventListener('click', e => {
+        const target = document.querySelector(a.getAttribute('href'));
+        if (target) { e.preventDefault(); target.scrollIntoView({ behavior: 'smooth' }); }
+      });
+    });
+
+    // Form success feedback
+    document.querySelectorAll('form').forEach(form => {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = form.querySelector('button[type="submit"]');
+        const originalText = btn.textContent;
+        btn.textContent = '⏳ Envoi…';
+        btn.disabled = true;
+        try {
+          const res = await fetch(form.action, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: { 'Accept': 'application/json' }
+          });
+          if (res.ok) {
+            btn.textContent = '✅ Tu es sur la liste !';
+            btn.style.background = 'linear-gradient(135deg,#10B981,#059669)';
+            form.reset();
+          } else {
+            throw new Error();
+          }
+        } catch {
+          btn.textContent = originalText;
+          btn.disabled = false;
+          alert('Erreur. Réessaie ou envoie un email à contact@alternancetracker.app');
+        }
+      });
+    });
+
+    // Navbar scroll effect
+    const nav = document.querySelector('.nav');
+    window.addEventListener('scroll', () => {
+      nav.classList.toggle('scrolled', window.scrollY > 20);
+    });
+  </script>
+</body>
+</html>
