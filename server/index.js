@@ -1,14 +1,30 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const basicAuth = require('express-basic-auth');
 const { getDb, query, run } = require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+const APP_USER = process.env.APP_USER || 'yakup';
+const APP_PASSWORD = process.env.APP_PASSWORD;
+
+if (!APP_PASSWORD) {
+  console.warn('⚠️  APP_PASSWORD non défini — authentification désactivée en local');
+}
+
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../client/build')));
+
+if (APP_PASSWORD) {
+  app.use(basicAuth({
+    users: { [APP_USER]: APP_PASSWORD },
+    challenge: true,
+    realm: 'Alternance Tracker',
+  }));
+}
 
 app.use(async (req, res, next) => { await getDb(); next(); });
 
