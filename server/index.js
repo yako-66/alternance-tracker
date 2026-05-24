@@ -170,7 +170,7 @@ async function callGemini({ system, messages, max_tokens = 1024 }) {
     parts: [{ text: m.content }],
   }));
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${key}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key=${key}`,
     {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -181,7 +181,10 @@ async function callGemini({ system, messages, max_tokens = 1024 }) {
       }),
     }
   );
-  if (!res.ok) throw new Error(`Gemini ${res.status}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(`Gemini ${res.status}: ${err?.error?.message || JSON.stringify(err)}`);
+  }
   const data = await res.json();
   return data.candidates[0].content.parts[0].text;
 }
