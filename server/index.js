@@ -46,6 +46,10 @@ app.get('/api/waitlist', async (req, res) => {
   res.json({ count: rows.length, entries: rows });
 });
 
+app.get('/api/ping', (req, res) => {
+  res.json({ ok: true, gemini: !!process.env.GEMINI_API_KEY, ts: Date.now() });
+});
+
 app.get('/api/public/:token', async (req, res) => {
   await getDb();
   const row = query('SELECT * FROM shares WHERE token=?', [req.params.token])[0];
@@ -166,7 +170,7 @@ async function callGemini({ system, messages, max_tokens = 1024 }) {
     parts: [{ text: m.content }],
   }));
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
     {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
