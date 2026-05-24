@@ -170,7 +170,7 @@ async function callGemini({ system, messages, max_tokens = 1024 }) {
     parts: [{ text: m.content }],
   }));
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key=${key}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${key}`,
     {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -183,6 +183,7 @@ async function callGemini({ system, messages, max_tokens = 1024 }) {
   );
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
+    if (res.status === 429) throw new Error('Trop de requêtes — réessaie dans 30 secondes (quota gratuit Gemini)');
     throw new Error(`Gemini ${res.status}: ${err?.error?.message || JSON.stringify(err)}`);
   }
   const data = await res.json();
