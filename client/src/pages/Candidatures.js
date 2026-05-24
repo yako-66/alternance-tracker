@@ -222,6 +222,68 @@ export default function Candidatures({ navigate }) {
     else { setTableSortKey(key); setTableSortDir('asc'); }
   };
 
+  const exportPDF = () => {
+    const total = sorted.length;
+    const entretiens = sorted.filter(c => c.statut === 'Entretien').length;
+    const tauxReponse = total > 0
+      ? Math.round((sorted.filter(c => c.statut !== 'Postulé').length / total) * 100)
+      : 0;
+    const prioritaires = sorted.filter(c => c.priorite).length;
+    const rows = sorted.map(c => {
+      const days = daysSince(c.date_candidature);
+      const col = STATUT_COLORS[c.statut] || '#9a9aa8';
+      return `<tr>
+        <td><strong>${c.entreprise || '—'}</strong>${c.priorite ? ' 🔥' : ''}</td>
+        <td>${c.poste || '—'}</td>
+        <td><span class="badge" style="background:${col}22;color:${col};border:1px solid ${col}44">${c.statut}</span></td>
+        <td>${c.localisation || '—'}</td>
+        <td>${c.date_candidature || '—'}</td>
+        <td>${days !== null ? 'J+' + days : '—'}</td>
+        <td>${c.score > 0 ? '★'.repeat(c.score) : '—'}</td>
+      </tr>`;
+    }).join('');
+    const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+<title>Rapport — ${new Date().toLocaleDateString('fr-FR')}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#fff;color:#1a1a2e;padding:40px;font-size:13px}
+h1{font-size:1.8rem;font-weight:800;color:#7c3aed;margin-bottom:4px}
+.sub{color:#888;font-size:0.85rem;margin-bottom:28px}
+.kpis{display:flex;gap:16px;margin-bottom:28px;flex-wrap:wrap}
+.kpi{background:#f5f3ff;border-radius:12px;padding:14px 22px;text-align:center;flex:1;min-width:110px;border:1px solid #e9d5ff}
+.kpi-num{font-size:1.8rem;font-weight:800;color:#7c3aed}
+.kpi-label{font-size:0.75rem;color:#666;margin-top:2px;text-transform:uppercase;letter-spacing:0.04em}
+h2{font-size:1rem;font-weight:700;margin-bottom:10px;border-bottom:2px solid #f5f3ff;padding-bottom:5px;color:#4c1d95}
+table{width:100%;border-collapse:collapse}
+th{background:#7c3aed;color:#fff;padding:8px 10px;text-align:left;font-size:0.78rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em}
+td{padding:7px 10px;border-bottom:1px solid #f0eeff;vertical-align:middle}
+tr:nth-child(even) td{background:#faf8ff}
+.badge{display:inline-block;padding:2px 7px;border-radius:5px;font-size:0.73rem;font-weight:600;white-space:nowrap}
+.footer{text-align:center;color:#bbb;font-size:0.75rem;margin-top:36px;padding-top:16px;border-top:1px solid #f0eeff}
+@media print{body{padding:20px}button{display:none}}
+</style></head><body>
+<h1>📋 Rapport de candidatures</h1>
+<div class="sub">Généré le ${new Date().toLocaleDateString('fr-FR',{weekday:'long',year:'numeric',month:'long',day:'numeric'})} · AlternanceTracker</div>
+<div class="kpis">
+  <div class="kpi"><div class="kpi-num">${total}</div><div class="kpi-label">Total</div></div>
+  <div class="kpi"><div class="kpi-num">${entretiens}</div><div class="kpi-label">Entretiens</div></div>
+  <div class="kpi"><div class="kpi-num">${tauxReponse}%</div><div class="kpi-label">Taux retour</div></div>
+  <div class="kpi"><div class="kpi-num">${prioritaires}</div><div class="kpi-label">Prioritaires</div></div>
+</div>
+<h2>Liste des candidatures (${total})</h2>
+<table><thead><tr><th>Entreprise</th><th>Poste</th><th>Statut</th><th>Lieu</th><th>Date</th><th>J+</th><th>Note</th></tr></thead>
+<tbody>${rows}</tbody></table>
+<div class="footer">AlternanceTracker · ${new Date().getFullYear()}</div>
+<script>window.onload=()=>{window.print();}<\/script>
+</body></html>`;
+    const blob = new Blob([html], { type: 'text/html' });
+    const blobUrl = URL.createObjectURL(blob);
+    const win = window.open(blobUrl, '_blank');
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+    if (!win) showToast('❌ Autorise les popups pour exporter en PDF');
+    else showToast('📄 Rapport ouvert — Ctrl+P pour enregistrer en PDF');
+  };
+
   const exportCSV = () => {
     const headers = ['Entreprise','Poste','Statut','Localisation','Source','Date','Contact','Notes','Score','Prioritaire','Tags'];
     const rows = sorted.map(c => [
@@ -241,25 +303,43 @@ export default function Candidatures({ navigate }) {
   const [showParse, setShowParse] = useState(false);
   const [parseText, setParseText] = useState('');
   const [parsePending, setParsePending] = useState(false);
+  const [parseMode, setParseMode] = useState('text');
+  const [parseUrl, setParseUrl] = useState('');
+
+  const applyParsed = (res) => {
+    setForm(f => ({...f,
+      entreprise: res.entreprise || f.entreprise,
+      poste: res.poste || f.poste,
+      localisation: res.localisation || f.localisation,
+      source: res.source || f.source,
+      salaire: res.salaire || f.salaire,
+      secteur: res.secteur || f.secteur,
+      notes: res.notes ? (f.notes ? f.notes + '\n' + res.notes : res.notes) : f.notes,
+    }));
+    setShowParse(false);
+  };
 
   const runParse = async () => {
     if (!parseText.trim()) return;
     setParsePending(true);
     try {
       const res = await api.post('/api/ai/parse', { text: parseText });
-      setForm(f => ({...f,
-        entreprise: res.entreprise || f.entreprise,
-        poste: res.poste || f.poste,
-        localisation: res.localisation || f.localisation,
-        source: res.source || f.source,
-        salaire: res.salaire || f.salaire,
-        secteur: res.secteur || f.secteur,
-        notes: res.notes ? (f.notes ? f.notes + '\n' + res.notes : res.notes) : f.notes,
-      }));
-      setShowParse(false);
+      applyParsed(res);
       setParseText('');
       showToast('✨ Offre parsée ! Vérifie les champs.');
     } catch(e) { showToast('❌ Erreur parsing : ' + (e.message || 'API indisponible')); }
+    setParsePending(false);
+  };
+
+  const runParseUrl = async () => {
+    if (!parseUrl.trim()) return;
+    setParsePending(true);
+    try {
+      const res = await api.post('/api/ai/import-url', { url: parseUrl });
+      applyParsed(res);
+      setParseUrl('');
+      showToast('✨ Offre importée ! Vérifie les champs.');
+    } catch(e) { showToast('❌ Import impossible : ' + (e.message || 'Site inaccessible')); }
     setParsePending(false);
   };
 
@@ -439,6 +519,7 @@ export default function Candidatures({ navigate }) {
           <button className={`btn-select-mode ${selectMode ? 'active' : ''}`} onClick={() => { setSelectMode(s => !s); setSelectedIds(new Set()); }} title="Sélection multiple">
             ☑ Sélect.
           </button>
+          <button className="btn-export" onClick={exportPDF} title="Exporter en PDF">📄 PDF</button>
           <button className="btn-export" onClick={exportCSV} title="Exporter en CSV">⬇ CSV</button>
           <button className="btn-primary" onClick={openAdd} title="Nouvelle candidature (N)">+ Ajouter</button>
         </div>
@@ -699,20 +780,42 @@ export default function Candidatures({ navigate }) {
         >
           <div className="parse-offer-section">
             <button type="button" className="btn-parse-offer" onClick={() => setShowParse(s => !s)}>
-              ✨ {showParse ? 'Masquer' : "Parser une offre avec l'IA"}
+              ✨ {showParse ? 'Masquer' : "Importer une offre avec l'IA"}
             </button>
             {showParse && (
               <div className="parse-offer-box">
-                <textarea
-                  className="parse-textarea"
-                  rows={5}
-                  placeholder="Colle ici le texte de l'offre d'emploi (depuis LinkedIn, Indeed, etc.)…"
-                  value={parseText}
-                  onChange={e => setParseText(e.target.value)}
-                />
-                <button type="button" className="btn-parse-run" onClick={runParse} disabled={parsePending || !parseText.trim()}>
-                  {parsePending ? '⏳ Analyse…' : '🔍 Remplir le formulaire'}
-                </button>
+                <div className="parse-mode-tabs">
+                  <button type="button" className={`parse-mode-tab${parseMode==='text'?' active':''}`} onClick={() => setParseMode('text')}>📋 Coller du texte</button>
+                  <button type="button" className={`parse-mode-tab${parseMode==='url'?' active':''}`} onClick={() => setParseMode('url')}>🔗 Depuis une URL</button>
+                </div>
+                {parseMode === 'text' ? (
+                  <>
+                    <textarea
+                      className="parse-textarea"
+                      rows={4}
+                      placeholder="Colle ici le texte de l'offre d'emploi (depuis LinkedIn, Indeed, etc.)…"
+                      value={parseText}
+                      onChange={e => setParseText(e.target.value)}
+                    />
+                    <button type="button" className="btn-parse-run" onClick={runParse} disabled={parsePending || !parseText.trim()}>
+                      {parsePending ? '⏳ Analyse…' : '🔍 Remplir le formulaire'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <input
+                      type="url"
+                      className="parse-url-input"
+                      placeholder="https://www.indeed.com/viewjob?jk=… ou APEC, Hellowork…"
+                      value={parseUrl}
+                      onChange={e => setParseUrl(e.target.value)}
+                    />
+                    <div className="parse-url-hint">💡 LinkedIn requiert d'être connecté — utilise le mode Texte comme alternative.</div>
+                    <button type="button" className="btn-parse-run" onClick={runParseUrl} disabled={parsePending || !parseUrl.trim()}>
+                      {parsePending ? '⏳ Import en cours…' : '🚀 Importer l\'offre'}
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>

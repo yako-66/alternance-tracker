@@ -584,3 +584,27 @@
   align-self:flex-start; transition:var(--t-spring);
 }
 .btn-parse-run:disabled { opacity:0.5; cursor:not-allowed; }
+
+/* ── Import URL tabs ── */
+.parse-mode-tabs {
+  display:flex; gap:4px;
+  background:var(--bg2); border-radius:var(--radius-full); padding:3px;
+  width:fit-content;
+}
+.parse-mode-tab {
+  padding:5px 14px; border-radius:var(--radius-full);
+  background:transparent; border:none; cursor:pointer;
+  font-size:0.78rem; font-weight:500; color:var(--text2); transition:var(--t);
+}
+.parse-mode-tab.active { background:var(--purple); color:#fff; font-weight:600; }
+.parse-mode-tab:hover:not(.active) { color:var(--purple); }
+.parse-url-input {
+  border:1.5px solid var(--border2); border-radius:var(--radius-sm);
+  background:var(--bg); color:var(--text); padding:10px 12px;
+  font-size:0.82rem; font-family:var(--font-body); width:100%;
+  box-sizing:border-box; transition:border-color 0.2s;
+}
+.parse-url-input:focus { outline:none; border-color:var(--purple); }
+.parse-url-hint {
+  font-size:0.74rem; color:var(--muted); padding:0 2px;
+}

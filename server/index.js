@@ -293,6 +293,38 @@ app.post('/api/ai/interview', auth, async (req, res) => {
   } catch(e) { res.status(503).json({ error: e.message }); }
 });
 
+// ── Import URL ──
+app.post('/api/ai/import-url', auth, async (req, res) => {
+  const { url } = req.body;
+  if (!url || !url.startsWith('http')) return res.status(400).json({ error: 'URL invalide' });
+  try {
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 12000);
+    const r = await fetch(url, {
+      signal: ctrl.signal,
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+    });
+    clearTimeout(timeout);
+    let text = await r.text();
+    text = text
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 6000);
+    const raw = await callAI({
+      system: 'Tu extrais des informations structurées depuis une page web d\'offre d\'emploi. Réponds UNIQUEMENT avec un JSON valide, aucun autre texte. Format exact : {"entreprise":"","poste":"","localisation":"","source":"","salaire":"","secteur":"","notes":""}',
+      messages: [{ role: 'user', content: text }],
+      max_tokens: 512,
+    });
+    const json = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] || '{}');
+    res.json(json);
+  } catch(e) {
+    res.status(503).json({ error: e.message.includes('aborted') ? 'Site inaccessible (timeout)' : e.message });
+  }
+});
+
 // ── Share routes ──
 app.post('/api/share', auth, (req, res) => {
   let row = query('SELECT token FROM shares WHERE user_id=? LIMIT 1', [req.user.userId])[0];
