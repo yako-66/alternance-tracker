@@ -130,84 +130,73 @@ app.get('/api/stats', (req, res) => {
   res.json({ total, byStatut, recent });
 });
 
-// ── AI routes ──
-const Anthropic = require('@anthropic-ai/sdk');
-let _aiClient = null;
-function getAI() {
-  if (!process.env.ANTHROPIC_API_KEY) return null;
-  if (!_aiClient) _aiClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  return _aiClient;
+// ── AI routes (fetch natif — pas de SDK externe) ──
+async function callClaude({ system, messages, max_tokens = 1024 }) {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) throw new Error('ANTHROPIC_API_KEY non configuré');
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens, system, messages }),
+  });
+  if (!res.ok) throw new Error(`Anthropic ${res.status}`);
+  const data = await res.json();
+  return data.content[0].text;
 }
 
-// POST /api/ai/coach  — chat avec contexte candidatures
 app.post('/api/ai/coach', async (req, res) => {
-  const ai = getAI();
-  if (!ai) return res.status(503).json({ error: 'ANTHROPIC_API_KEY non configuré' });
   const { messages, candidatures } = req.body;
-  const ctx = candidatures?.slice(0,30).map(c =>
+  const ctx = (candidatures||[]).slice(0,30).map(c =>
     `- ${c.entreprise} (${c.poste||'?'}) : ${c.statut}, ${c.localisation||''}, ${c.date_candidature||''}`
   ).join('\n') || '(aucune candidature)';
   try {
-    const resp = await ai.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1024,
+    const content = await callClaude({
       system: `Tu es un coach spécialisé dans la recherche d'alternance en France. Tu connais les candidatures de l'utilisateur :\n${ctx}\n\nRéponds en français, sois concis et actionnable. Max 3 paragraphes.`,
-      messages: messages.slice(-10),
+      messages: (messages||[]).slice(-10),
     });
-    res.json({ content: resp.content[0].text });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+    res.json({ content });
+  } catch(e) { res.status(503).json({ error: e.message }); }
 });
 
-// POST /api/ai/parse  — parse une offre d'emploi en JSON
 app.post('/api/ai/parse', async (req, res) => {
-  const ai = getAI();
-  if (!ai) return res.status(503).json({ error: 'ANTHROPIC_API_KEY non configuré' });
   const { text } = req.body;
   try {
-    const resp = await ai.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 512,
+    const raw = await callClaude({
       system: 'Tu extrais des informations structurées depuis une offre d\'emploi. Réponds UNIQUEMENT avec un JSON valide, aucun autre texte. Format : {"entreprise":"","poste":"","localisation":"","source":"","salaire":"","secteur":"","notes":""}',
-      messages: [{ role: 'user', content: text.slice(0, 4000) }],
+      messages: [{ role: 'user', content: (text||'').slice(0, 4000) }],
+      max_tokens: 512,
     });
-    const json = JSON.parse(resp.content[0].text.match(/\{[\s\S]*\}/)?.[0] || '{}');
+    const json = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] || '{}');
     res.json(json);
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { res.status(503).json({ error: e.message }); }
 });
 
-// POST /api/ai/cover-letter  — génère une lettre de motivation
 app.post('/api/ai/cover-letter', async (req, res) => {
-  const ai = getAI();
-  if (!ai) return res.status(503).json({ error: 'ANTHROPIC_API_KEY non configuré' });
   const { candidature, profil } = req.body;
   try {
-    const resp = await ai.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1500,
+    const letter = await callClaude({
       system: 'Tu rédiges des lettres de motivation professionnelles pour des candidatures en alternance en France. Ton style : direct, enthousiaste, personnalisé. 3 paragraphes max.',
-      messages: [{
-        role: 'user',
-        content: `Rédige une lettre de motivation pour ce poste :\nEntreprise : ${candidature.entreprise}\nPoste : ${candidature.poste||'alternance'}\nLocalisation : ${candidature.localisation||''}\nSecteur : ${candidature.secteur||''}\n\nProfil du candidat :\n${profil || 'Étudiant en alternance recherchant une entreprise'}`,
-      }],
+      messages: [{ role: 'user', content: `Rédige une lettre de motivation pour ce poste :\nEntreprise : ${candidature.entreprise}\nPoste : ${candidature.poste||'alternance'}\nLocalisation : ${candidature.localisation||''}\nSecteur : ${candidature.secteur||''}\n\nProfil du candidat :\n${profil || 'Étudiant en alternance recherchant une entreprise'}` }],
+      max_tokens: 1500,
     });
-    res.json({ letter: resp.content[0].text });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+    res.json({ letter });
+  } catch(e) { res.status(503).json({ error: e.message }); }
 });
 
-// POST /api/ai/interview  — simulation d'entretien
 app.post('/api/ai/interview', async (req, res) => {
-  const ai = getAI();
-  if (!ai) return res.status(503).json({ error: 'ANTHROPIC_API_KEY non configuré' });
   const { messages, candidature } = req.body;
   try {
-    const resp = await ai.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+    const content = await callClaude({
+      system: `Tu joues le rôle d'un recruteur RH pour le poste de "${candidature?.poste||'alternant'}" chez "${candidature?.entreprise||'notre entreprise'}". Pose des questions d'entretien réalistes, une à la fois. Donne un feedback bref puis pose la suivante. Commence par te présenter. Réponds en français.`,
+      messages: (messages||[]).slice(-10),
       max_tokens: 512,
-      system: `Tu joues le rôle d'un recruteur RH pour le poste de "${candidature?.poste||'alternant'}" chez "${candidature?.entreprise||'notre entreprise'}". Pose des questions d'entretien réalistes, une à la fois. Si le candidat répond, donne un feedback bref puis pose la question suivante. Commence par te présenter et poser la première question. Réponds en français.`,
-      messages: messages.slice(-10),
     });
-    res.json({ content: resp.content[0].text });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+    res.json({ content });
+  } catch(e) { res.status(503).json({ error: e.message }); }
 });
 
 // ── Share routes ──
