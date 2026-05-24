@@ -56,6 +56,31 @@
 .btn-settings-action:hover { transform:translateY(-1px) scale(1.03); }
 .btn-settings-action:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
 
+/* ── Danger Zone ── */
+.settings-card-danger {
+  border-color:rgba(239,68,68,0.2);
+  background:linear-gradient(135deg,rgba(239,68,68,0.03),var(--surface));
+}
+.settings-danger-title { color:var(--red); }
+
+.btn-settings-action-green { background:linear-gradient(135deg,var(--green),#34D399); box-shadow:0 4px 14px rgba(16,185,129,0.3); }
+.btn-settings-danger-light { background:var(--surface); color:var(--red); border:1.5px solid rgba(239,68,68,0.3); box-shadow:none; }
+.btn-settings-danger-light:hover { background:var(--red); color:white; }
+.btn-settings-danger { background:linear-gradient(135deg,#EF4444,#DC2626); box-shadow:0 4px 14px rgba(239,68,68,0.3); }
+.btn-settings-danger:hover { transform:translateY(-1px); box-shadow:0 8px 24px rgba(239,68,68,0.4); }
+
+.settings-status { font-size:0.78rem; font-weight:600; animation:fadeIn 0.3s; }
+
+/* ── Toast ── */
+.settings-toast {
+  position:fixed; bottom:90px; left:50%; transform:translateX(-50%);
+  background:var(--text); color:white;
+  padding:11px 22px; border-radius:var(--radius-full);
+  font-size:0.875rem; font-weight:500;
+  z-index:9999; box-shadow:var(--shadow-lg); white-space:nowrap;
+  animation:toastIn 0.3s var(--t-spring);
+}
+
 /* ── Import ── */
 .settings-import {
   background:var(--bg); border:1px solid var(--border2);

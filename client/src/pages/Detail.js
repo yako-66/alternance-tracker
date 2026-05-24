@@ -3,6 +3,21 @@ import { api } from '../hooks/api';
 import Confetti from '../components/Confetti';
 import './Detail.css';
 
+const DEFAULT_CHECKLIST = [
+  { text: "Rechercher l'entreprise (valeurs, actualité, concurrents)", done: false },
+  { text: 'Préparer 3 questions à poser au recruteur', done: false },
+  { text: "Confirmer le lieu, l'heure et le format de l'entretien", done: false },
+  { text: 'Préparer ma tenue la veille', done: false },
+  { text: "Relire l'offre d'emploi et identifier les mots-clés", done: false },
+  { text: 'Revoir mon parcours et préparer le pitch de 2 min', done: false },
+  { text: 'Imprimer 2 exemplaires de mon CV', done: false },
+];
+
+function completionScore(c) {
+  const checks = [!!c.entreprise, !!c.poste, !!c.source, !!c.contact, !!c.localisation, !!c.notes, !!c.date_candidature, !!c.date_entretien, (c.score||0)>0];
+  return Math.round(checks.filter(Boolean).length / checks.length * 100);
+}
+
 const STATUTS = ['Postulé','En attente','En attente de réponse','Entretien','Refus','Sans suite'];
 const STATUT_COLORS = {
   'Postulé':'#4ecdc4','En attente':'#ff9f43','En attente de réponse':'#f5c842',
@@ -111,6 +126,9 @@ export default function Detail({ id, navigate }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [copiedTemplate, setCopiedTemplate] = useState(-1);
+  const [checklist, setChecklist] = useState([]);
+  const [newCheckItem, setNewCheckItem] = useState('');
+  const checklistLoaded = React.useRef(false);
 
   const copyTemplate = (text, idx) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -134,6 +152,27 @@ export default function Detail({ id, navigate }) {
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!id || checklistLoaded.current) return;
+    const saved = localStorage.getItem(`checklist_${id}`);
+    setChecklist(saved ? JSON.parse(saved) : DEFAULT_CHECKLIST.map(i => ({...i})));
+    checklistLoaded.current = true;
+  }, [id]);
+
+  const saveChecklist = (updated) => {
+    setChecklist(updated);
+    localStorage.setItem(`checklist_${id}`, JSON.stringify(updated));
+  };
+
+  const toggleCheck = (i) => saveChecklist(checklist.map((item, idx) => idx === i ? {...item, done: !item.done} : item));
+  const removeCheckItem = (i) => saveChecklist(checklist.filter((_, idx) => idx !== i));
+  const addCheckItem = () => {
+    if (!newCheckItem.trim()) return;
+    saveChecklist([...checklist, { text: newCheckItem.trim(), done: false }]);
+    setNewCheckItem('');
+  };
+  const resetChecklist = () => saveChecklist(DEFAULT_CHECKLIST.map(i => ({...i})));
 
   const save = async () => {
     setSaving(true);
@@ -225,6 +264,17 @@ export default function Detail({ id, navigate }) {
               {cand.date_candidature && <span className="detail-chip">📅 {cand.date_candidature}</span>}
               {cand.contact && <span className="detail-chip">👤 {cand.contact}</span>}
             </div>
+            {(() => {
+              const score = completionScore(cand);
+              return (
+                <div className="detail-completion-wrap">
+                  <div className="detail-completion-bar">
+                    <div className="detail-completion-fill" style={{width:`${score}%`}} />
+                  </div>
+                  <span className="detail-completion-label">{score}% complet</span>
+                </div>
+              );
+            })()}
             {cand.date_entretien && (() => {
               const days = daysUntil(cand.date_entretien);
               if (days === null) return null;
@@ -405,6 +455,49 @@ export default function Detail({ id, navigate }) {
           </div>
         </div>
       </div>
+
+      {/* CHECKLIST */}
+      {(() => {
+        const doneCount = checklist.filter(i => i.done).length;
+        const total = checklist.length;
+        const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+        return (
+          <div className="card checklist-card">
+            <div className="card-title-row">
+              <h2 className="card-title">✅ Checklist avant entretien</h2>
+              <button className="checklist-reset-btn" onClick={resetChecklist} title="Réinitialiser">↺ Réinitialiser</button>
+            </div>
+            <div className="checklist-progress">
+              <div className="checklist-progress-track">
+                <div className="checklist-progress-fill" style={{width:`${pct}%`}} />
+              </div>
+              {doneCount === total && total > 0
+                ? <span className="checklist-all-done">🎉 Tout prêt !</span>
+                : <span className="checklist-progress-label">{doneCount}/{total}</span>
+              }
+            </div>
+            <div className="checklist-items">
+              {checklist.map((item, i) => (
+                <div key={i} className={`checklist-item ${item.done ? 'done' : ''}`} onClick={() => toggleCheck(i)}>
+                  <div className="checklist-checkbox">{item.done ? '✓' : ''}</div>
+                  <span className="checklist-text">{item.text}</span>
+                  <button className="checklist-del" onClick={e => { e.stopPropagation(); removeCheckItem(i); }} title="Supprimer">×</button>
+                </div>
+              ))}
+            </div>
+            <div className="checklist-add-row">
+              <input
+                className="checklist-add-input"
+                placeholder="Ajouter une tâche..."
+                value={newCheckItem}
+                onChange={e => setNewCheckItem(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') addCheckItem(); }}
+              />
+              <button className="checklist-add-btn" onClick={addCheckItem}>+ Ajouter</button>
+            </div>
+          </div>
+        );
+      })()}
 
       {toast && <div className={`toast ${toastType === 'success' ? 'toast-success' : ''}`}>{toast}</div>}
     </div>

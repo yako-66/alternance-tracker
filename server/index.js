@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const basicAuth = require('express-basic-auth');
-const { getDb, query, run } = require('./database');
+const { getDb, query, run, save } = require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -42,12 +42,19 @@ app.post('/api/candidatures', (req, res) => {
 });
 
 app.put('/api/candidatures/:id', (req, res) => {
+  const cid = parseInt(req.params.id);
+  const current = query('SELECT * FROM candidatures WHERE id=?', [cid])[0];
   const { entreprise, poste, source, date_candidature, contact, statut, notes, localisation, priorite, score, date_entretien } = req.body;
   run(
     'UPDATE candidatures SET entreprise=?,poste=?,source=?,date_candidature=?,contact=?,statut=?,notes=?,localisation=?,priorite=?,score=?,date_entretien=? WHERE id=?',
-    [entreprise, poste||'', source||'', date_candidature||'', contact||'', statut, notes||'', localisation||'', priorite||0, score||0, date_entretien||'', parseInt(req.params.id)]
+    [entreprise, poste||'', source||'', date_candidature||'', contact||'', statut, notes||'', localisation||'', priorite||0, score||0, date_entretien||'', cid]
   );
-  res.json(query('SELECT * FROM candidatures WHERE id=?', [parseInt(req.params.id)])[0]);
+  if (current && current.statut !== statut) {
+    run('INSERT INTO echanges (candidature_id,type,contenu,date) VALUES (?,?,?,?)',
+      [cid, 'Changement de statut', `${current.statut} → ${statut}`, new Date().toISOString().split('T')[0]]
+    );
+  }
+  res.json(query('SELECT * FROM candidatures WHERE id=?', [cid])[0]);
 });
 
 app.delete('/api/candidatures/:id', (req, res) => {
@@ -71,6 +78,39 @@ app.post('/api/candidatures/:id/echanges', (req, res) => {
 
 app.delete('/api/echanges/:id', (req, res) => {
   run('DELETE FROM echanges WHERE id=?', [parseInt(req.params.id)]);
+  res.json({ success: true });
+});
+
+app.get('/api/backup', (req, res) => {
+  const candidatures = query('SELECT * FROM candidatures ORDER BY id ASC', []);
+  const echanges = query('SELECT * FROM echanges ORDER BY id ASC', []);
+  res.json({ candidatures, echanges, exportedAt: new Date().toISOString() });
+});
+
+app.post('/api/restore', (req, res) => {
+  const { candidatures = [], echanges = [] } = req.body;
+  run('DELETE FROM echanges', []);
+  run('DELETE FROM candidatures', []);
+  for (const c of candidatures) {
+    run('INSERT INTO candidatures (entreprise,poste,source,date_candidature,contact,statut,notes,localisation,priorite,score,date_entretien) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+      [c.entreprise, c.poste||'', c.source||'', c.date_candidature||'', c.contact||'', c.statut||'Postulé', c.notes||'', c.localisation||'', c.priorite||0, c.score||0, c.date_entretien||'']
+    );
+  }
+  const newIds = query('SELECT id FROM candidatures ORDER BY id ASC', []).map(r => r.id);
+  const oldIds = candidatures.map(c => c.id);
+  for (const e of echanges) {
+    const idx = oldIds.indexOf(e.candidature_id);
+    const newCid = idx >= 0 && newIds[idx] ? newIds[idx] : e.candidature_id;
+    run('INSERT INTO echanges (candidature_id,type,contenu,date) VALUES (?,?,?,?)',
+      [newCid, e.type, e.contenu, e.date]
+    );
+  }
+  res.json({ success: true, candidatures: candidatures.length, echanges: echanges.length });
+});
+
+app.delete('/api/reset', (req, res) => {
+  run('DELETE FROM echanges', []);
+  run('DELETE FROM candidatures', []);
   res.json({ success: true });
 });
 

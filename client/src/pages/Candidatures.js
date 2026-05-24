@@ -76,6 +76,17 @@ function SkeletonList() {
   );
 }
 
+function CompletionBar({ c }) {
+  const fields = [c.entreprise, c.poste, c.source, c.contact, c.localisation, c.notes, c.date_candidature, c.date_entretien, c.score > 0 ? 'yes' : ''];
+  const score = Math.round(fields.filter(Boolean).length / fields.length * 100);
+  const color = score >= 78 ? '#10B981' : score >= 45 ? '#F59E0B' : '#EF4444';
+  return (
+    <div className="completion-bar-wrap" title={`Complétude : ${score}%`}>
+      <div className="completion-bar-fill" style={{ width: `${score}%`, background: color }} />
+    </div>
+  );
+}
+
 const STATUTS = ['Postulé','En attente','En attente de réponse','Entretien','Refus','Sans suite'];
 const STATUT_COLORS = {
   'Postulé':'#4ecdc4','En attente':'#ff9f43','En attente de réponse':'#ffd93d',
@@ -92,6 +103,16 @@ function daysSince(dateStr) {
   return Math.floor((Date.now() - d.getTime()) / 86400000);
 }
 
+const TABLE_COLS = [
+  { key:'entreprise', label:'Entreprise', w:'22%' },
+  { key:'poste',      label:'Poste',      w:'20%' },
+  { key:'statut',     label:'Statut',     w:'14%' },
+  { key:'localisation',label:'Lieu',      w:'12%' },
+  { key:'date_candidature',label:'Date',  w:'10%' },
+  { key:'days',       label:'J+',         w:'6%'  },
+  { key:'score',      label:'Score',      w:'8%'  },
+];
+
 export default function Candidatures({ navigate }) {
   const [list, setList]               = useState([]);
   const [loading, setLoading]         = useState(true);
@@ -107,6 +128,8 @@ export default function Candidatures({ navigate }) {
   const [savedOk, setSavedOk]         = useState(false);
   const [savedMsg, setSavedMsg]       = useState('');
   const [sortKey, setSortKey]         = useState('recent');
+  const [tableSortKey, setTableSortKey] = useState('recent');
+  const [tableSortDir, setTableSortDir] = useState('desc');
   const [confetti, setConfetti]       = useState(false);
   const [draggedId, setDraggedId]     = useState(null);
   const [dragOverCol, setDragOverCol] = useState(null);
@@ -119,7 +142,6 @@ export default function Candidatures({ navigate }) {
 
   useEffect(() => { load(); }, [load]);
 
-  // Raccourcis clavier
   useEffect(() => {
     const handler = (e) => {
       const tag = document.activeElement?.tagName;
@@ -136,7 +158,7 @@ export default function Candidatures({ navigate }) {
 
   const filtered = list.filter(c => {
     const q = search.toLowerCase();
-    const matchSearch = !q || c.entreprise?.toLowerCase().includes(q) || c.poste?.toLowerCase().includes(q) || c.source?.toLowerCase().includes(q) || c.localisation?.toLowerCase().includes(q);
+    const matchSearch = !q || c.entreprise?.toLowerCase().includes(q) || c.poste?.toLowerCase().includes(q) || c.source?.toLowerCase().includes(q) || c.localisation?.toLowerCase().includes(q) || c.notes?.toLowerCase().includes(q) || c.contact?.toLowerCase().includes(q);
     const matchStatut = !filterStatut || c.statut === filterStatut;
     const matchPrio = !filterPrio || c.priorite === 1;
     return matchSearch && matchStatut && matchPrio;
@@ -155,6 +177,30 @@ export default function Candidatures({ navigate }) {
     }
   });
 
+  const tableSorted = [...filtered].sort((a, b) => {
+    let va, vb;
+    if (tableSortKey === 'days') {
+      va = daysSince(a.date_candidature) ?? 9999;
+      vb = daysSince(b.date_candidature) ?? 9999;
+    } else if (tableSortKey === 'score') {
+      va = a.score || 0; vb = b.score || 0;
+    } else if (tableSortKey === 'statut') {
+      va = STATUT_ORDER.indexOf(a.statut);
+      vb = STATUT_ORDER.indexOf(b.statut);
+    } else if (tableSortKey === 'recent') {
+      va = a.id; vb = b.id;
+    } else {
+      va = (a[tableSortKey] || '').toString().toLowerCase();
+      vb = (b[tableSortKey] || '').toString().toLowerCase();
+    }
+    return tableSortDir === 'asc' ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
+  });
+
+  const handleTableSort = (key) => {
+    if (tableSortKey === key) setTableSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setTableSortKey(key); setTableSortDir('asc'); }
+  };
+
   const exportCSV = () => {
     const headers = ['Entreprise','Poste','Statut','Localisation','Source','Date','Contact','Notes','Score','Prioritaire'];
     const rows = sorted.map(c => [
@@ -172,6 +218,13 @@ export default function Candidatures({ navigate }) {
 
   const openAdd = () => { setEditing(null); setForm({...empty, date_candidature: new Date().toISOString().split('T')[0]}); setShowModal(true); };
   const openEdit = (c, e) => { e.stopPropagation(); setEditing(c); setForm({...c, priorite:c.priorite||0, score:c.score||0}); setShowModal(true); };
+  const duplicate = (c, e) => {
+    e.stopPropagation();
+    setEditing(null);
+    setForm({...empty, ...c, id:undefined, entreprise:`${c.entreprise}`, date_candidature:new Date().toISOString().split('T')[0]});
+    setShowModal(true);
+    showToast('📋 Duplication — modifie et sauvegarde');
+  };
 
   const save = async () => {
     if (!form.entreprise.trim()) return;
@@ -236,7 +289,6 @@ export default function Candidatures({ navigate }) {
     await api.put(`/api/candidatures/${c.id}`, {...c, score}); load();
   };
 
-  // Kanban drag & drop
   const onDragStart = (e, id) => { setDraggedId(id); e.dataTransfer.effectAllowed = 'move'; };
   const onDragOver = (e, statut) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverCol(statut); };
   const onDragLeave = () => setDragOverCol(null);
@@ -264,6 +316,7 @@ export default function Candidatures({ navigate }) {
           <div className="view-toggle">
             <button className={view==='list'?'view-btn active':'view-btn'} onClick={() => setView('list')}>☰ Liste</button>
             <button className={view==='kanban'?'view-btn active':'view-btn'} onClick={() => setView('kanban')}>⊞ Kanban</button>
+            <button className={view==='table'?'view-btn active':'view-btn'} onClick={() => setView('table')}>⊟ Tableau</button>
           </div>
           <button className="btn-export" onClick={exportCSV} title="Exporter en CSV">⬇ CSV</button>
           <button className="btn-primary" onClick={openAdd} title="Nouvelle candidature (N)">+ Ajouter</button>
@@ -282,15 +335,17 @@ export default function Candidatures({ navigate }) {
           <option value="">Tous les statuts</option>
           {STATUTS.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
-        <select value={sortKey} onChange={e => setSortKey(e.target.value)} className="filter-select sort-select">
-          <option value="recent">↕ Plus récent</option>
-          <option value="oldest">↕ Plus ancien</option>
-          <option value="newest">↕ Date récente</option>
-          <option value="az">↕ A → Z</option>
-          <option value="za">↕ Z → A</option>
-          <option value="statut">↕ Par statut</option>
-          <option value="score">↕ Meilleur score</option>
-        </select>
+        {view !== 'table' && (
+          <select value={sortKey} onChange={e => setSortKey(e.target.value)} className="filter-select sort-select">
+            <option value="recent">↕ Plus récent</option>
+            <option value="oldest">↕ Plus ancien</option>
+            <option value="newest">↕ Date récente</option>
+            <option value="az">↕ A → Z</option>
+            <option value="za">↕ Z → A</option>
+            <option value="statut">↕ Par statut</option>
+            <option value="score">↕ Meilleur score</option>
+          </select>
+        )}
         <button className={`btn-prio-filter ${filterPrio ? 'active' : ''}`} onClick={() => setFilterPrio(p => !p)}>
           🔥 Prioritaires
         </button>
@@ -299,7 +354,64 @@ export default function Candidatures({ navigate }) {
         )}
       </div>
 
-      {loading ? <SkeletonList /> : view === 'list' ? (
+      {loading ? <SkeletonList /> : view === 'table' ? (
+        <div className="cand-table-wrap">
+          <table className="cand-table">
+            <thead>
+              <tr>
+                {TABLE_COLS.map(col => (
+                  <th key={col.key} style={{width:col.w}} onClick={() => handleTableSort(col.key)} className={`table-th ${tableSortKey===col.key?'th-active':''}`}>
+                    {col.label}
+                    {tableSortKey===col.key && <span className="th-sort">{tableSortDir==='asc'?'↑':'↓'}</span>}
+                  </th>
+                ))}
+                <th className="table-th" style={{width:'8%'}}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tableSorted.map((c, i) => {
+                const days = daysSince(c.date_candidature);
+                const urgent = days !== null && days >= 7 && ['Postulé','En attente'].includes(c.statut);
+                return (
+                  <tr key={c.id} className={`table-row ${urgent?'table-row-urgent':''} ${c.priorite?'table-row-prio':''}`}
+                    onClick={() => navigate('detail', c.id)} style={{animationDelay:`${i*20}ms`}}>
+                    <td className="td-entreprise">
+                      <div className="td-ent-inner">
+                        <div className="td-avatar">{(c.entreprise||'?')[0]}</div>
+                        <span className="td-ent-name">{c.entreprise}{c.priorite?<span className="td-prio-dot">🔥</span>:null}</span>
+                      </div>
+                    </td>
+                    <td className="td-text td-muted">{c.poste||'—'}</td>
+                    <td>
+                      <span className="td-statut-badge" style={{background:STATUT_COLORS[c.statut]+'22',color:STATUT_COLORS[c.statut]}}>
+                        {c.statut}
+                      </span>
+                    </td>
+                    <td className="td-text td-muted">{c.localisation||'—'}</td>
+                    <td className="td-text td-muted">{c.date_candidature||'—'}</td>
+                    <td className="td-days">
+                      {days !== null ? <span className={`td-days-badge ${urgent?'td-days-urgent':''}`}>J+{days}</span> : '—'}
+                    </td>
+                    <td>
+                      {c.score > 0 ? <StarDisplay score={c.score} /> : <span className="td-muted">—</span>}
+                    </td>
+                    <td onClick={e => e.stopPropagation()}>
+                      <div className="table-actions">
+                        <button className="icon-btn" title="Modifier" onClick={e => openEdit(c, e)}>✏️</button>
+                        <button className="icon-btn" title="Dupliquer" onClick={e => duplicate(c, e)}>📋</button>
+                        <button className="icon-btn" title="Supprimer" onClick={e => del(c.id, e)}>🗑️</button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {tableSorted.length === 0 && (
+                <tr><td colSpan={8} className="table-empty">Aucune candidature trouvée</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      ) : view === 'list' ? (
         <div className="cand-list">
           {sorted.map((c, i) => {
             const days = daysSince(c.date_candidature);
@@ -311,6 +423,7 @@ export default function Candidatures({ navigate }) {
                 style={{animationDelay:`${i * 35}ms`}}
                 onClick={() => navigate('detail', c.id)}
               >
+                <CompletionBar c={c} />
                 <div className="cand-left">
                   <div className="cand-avatar">{(c.entreprise||'?')[0]}</div>
                   <div>
@@ -325,6 +438,7 @@ export default function Candidatures({ navigate }) {
                       {c.source && <span>🔗 {c.source}</span>}
                       {c.date_candidature && <span>📅 {c.date_candidature}{days !== null ? ` (J+${days})` : ''}</span>}
                       {c.contact && <span>👤 {c.contact}</span>}
+                      {c.date_entretien && <span>🎯 Entretien {c.date_entretien}</span>}
                     </div>
                     {c.score > 0 && (
                       <div style={{marginTop:4}}>
@@ -353,6 +467,7 @@ export default function Candidatures({ navigate }) {
                   <div className="cand-actions">
                     <button className="icon-btn" title="Relance rapide" onClick={e => quickRelance(c, e)}>📨</button>
                     <button className={`icon-btn ${c.priorite ? 'icon-btn-active' : ''}`} title={c.priorite ? 'Retirer priorité' : 'Prioritaire'} onClick={e => togglePriorite(c, e)}>🔥</button>
+                    <button className="icon-btn" title="Dupliquer" onClick={e => duplicate(c, e)}>📋</button>
                     <button className="icon-btn" onClick={e => openEdit(c, e)}>✏️</button>
                     <button className="icon-btn" onClick={e => del(c.id, e)}>🗑️</button>
                   </div>

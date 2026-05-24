@@ -59,6 +59,74 @@ function daysSince(dateStr) {
   return Math.floor((Date.now() - d.getTime()) / 86400000);
 }
 
+function getWeekKey(date) {
+  const d = new Date(date);
+  const jan1 = new Date(d.getFullYear(), 0, 1);
+  const week = Math.ceil(((d - jan1) / 86400000 + jan1.getDay() + 1) / 7);
+  return `${d.getFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+function getWeekLabel(key) {
+  const [year, wPart] = key.split('-W');
+  const week = parseInt(wPart);
+  const jan1 = new Date(parseInt(year), 0, 1);
+  const dayOffset = (week - 1) * 7 - jan1.getDay() + 1;
+  const monday = new Date(jan1);
+  monday.setDate(jan1.getDate() + dayOffset);
+  return `${monday.getDate()}/${monday.getMonth() + 1}`;
+}
+
+function getWeekHistory() {
+  const result = [];
+  const now = new Date();
+  for (let i = 7; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i * 7);
+    const key = getWeekKey(d);
+    result.push({
+      key,
+      label: i === 0 ? 'Cette sem.' : getWeekLabel(key),
+      count: parseInt(localStorage.getItem(`week_hist_${key}`) || '0'),
+      isCurrent: i === 0,
+    });
+  }
+  return result;
+}
+
+function WeekSparkline({ weekHistory, objectif }) {
+  const max = Math.max(...weekHistory.map(w => w.count), objectif, 1);
+  return (
+    <div className="week-sparkline">
+      <div className="sparkline-title">📅 Historique des 8 dernières semaines</div>
+      <div className="sparkline-bars">
+        {weekHistory.map((w) => {
+          const pct = (w.count / max) * 100;
+          const reachedGoal = w.count >= objectif;
+          return (
+            <div key={w.key} className={`sparkline-col ${w.isCurrent ? 'sparkline-current' : ''}`}>
+              <div className="sparkline-count-label">{w.count > 0 ? w.count : ''}</div>
+              <div className="sparkline-bar-wrap">
+                <div
+                  className="sparkline-bar-fill"
+                  style={{
+                    height: `${Math.max(pct, w.count > 0 ? 8 : 0)}%`,
+                    background: reachedGoal ? 'var(--green)' : w.isCurrent ? 'var(--gradient)' : 'var(--accent)',
+                    opacity: w.isCurrent ? 1 : 0.65,
+                  }}
+                />
+              </div>
+              <div className="sparkline-label">{w.label}</div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="sparkline-goal-line" style={{bottom: `${Math.min((objectif / max) * 100, 95)}%`}}>
+        <span className="sparkline-goal-label">Objectif {objectif}</span>
+      </div>
+    </div>
+  );
+}
+
 function CountdownCard({ formation, targetDate }) {
   const TARGET = new Date(targetDate || '2026-10-01');
   const SEARCH_START = new Date('2026-01-01');
@@ -125,11 +193,37 @@ function TipCard() {
   );
 }
 
+function checkNotifications(upcomingInterviews) {
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowEnd = new Date(tomorrow); tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
+  const lastNotif = localStorage.getItem('last_interview_notif');
+  const todayStr = today.toISOString().split('T')[0];
+  if (lastNotif === todayStr) return;
+  const tmInterviews = upcomingInterviews.filter(c => {
+    const parts = c.date_entretien.includes('/') ? c.date_entretien.split('/').reverse() : c.date_entretien.split('-');
+    const d = new Date(parts.join('-')); d.setHours(0,0,0,0);
+    return d >= tomorrow && d < tomorrowEnd;
+  });
+  if (tmInterviews.length > 0) {
+    try {
+      new Notification('🎯 Entretien demain !', {
+        body: `Tu as ${tmInterviews.length} entretien(s) demain : ${tmInterviews.map(c => c.entreprise).join(', ')}`,
+        icon: '/favicon.ico',
+        tag: 'interview-reminder',
+      });
+      localStorage.setItem('last_interview_notif', todayStr);
+    } catch (e) {}
+  }
+}
+
 export default function Dashboard({ navigate }) {
   const [stats, setStats] = useState(null);
   const [relances, setRelances] = useState([]);
   const [upcomingInterviews, setUpcomingInterviews] = useState([]);
   const [weekCount, setWeekCount] = useState(0);
+  const [weekHistory, setWeekHistory] = useState(getWeekHistory);
   const [objectif, setObjectif] = useState(() => Math.max(1, parseInt(localStorage.getItem('objectif_week') || '5')));
   const [editingObjectif, setEditingObjectif] = useState(false);
   const [objectifInput, setObjectifInput] = useState('');
@@ -156,6 +250,14 @@ export default function Dashboard({ navigate }) {
       }).length;
       setWeekCount(wc);
 
+      // Save current week to history
+      const weekKey = getWeekKey(now);
+      const stored = parseInt(localStorage.getItem(`week_hist_${weekKey}`) || '0');
+      if (wc > stored) {
+        localStorage.setItem(`week_hist_${weekKey}`, String(wc));
+        setWeekHistory(getWeekHistory());
+      }
+
       const todayMidnight = new Date(); todayMidnight.setHours(0,0,0,0);
       const in7 = new Date(todayMidnight); in7.setDate(in7.getDate() + 7);
       const upcoming = all.filter(c => {
@@ -165,6 +267,7 @@ export default function Dashboard({ navigate }) {
         return !isNaN(d) && d >= todayMidnight && d <= in7;
       }).sort((a,b) => a.date_entretien.localeCompare(b.date_entretien));
       setUpcomingInterviews(upcoming);
+      checkNotifications(upcoming);
     });
   }, []);
 
@@ -185,15 +288,15 @@ export default function Dashboard({ navigate }) {
   const enAttente = stats.byStatut.filter(s => ['En attente','En attente de réponse'].includes(s.statut)).reduce((a,b) => a + b.count, 0);
 
   return <DashboardInner stats={stats} tauxReponse={tauxReponse} entretiens={entretiens} enAttente={enAttente}
-    relances={relances} upcomingInterviews={upcomingInterviews} weekCount={weekCount} objectif={objectif}
-    editingObjectif={editingObjectif} objectifInput={objectifInput} setObjectifInput={setObjectifInput}
-    setEditingObjectif={setEditingObjectif} saveObjectif={saveObjectif} navigate={navigate}
-    userName={userName} formation={userFormation} targetDate={userTargetDate} />;
+    relances={relances} upcomingInterviews={upcomingInterviews} weekCount={weekCount} weekHistory={weekHistory}
+    objectif={objectif} editingObjectif={editingObjectif} objectifInput={objectifInput}
+    setObjectifInput={setObjectifInput} setEditingObjectif={setEditingObjectif} saveObjectif={saveObjectif}
+    navigate={navigate} userName={userName} formation={userFormation} targetDate={userTargetDate} />;
 }
 
-function DashboardInner({ stats, tauxReponse, entretiens, enAttente, relances, upcomingInterviews, weekCount, objectif,
-  editingObjectif, objectifInput, setObjectifInput, setEditingObjectif, saveObjectif, navigate,
-  userName, formation, targetDate }) {
+function DashboardInner({ stats, tauxReponse, entretiens, enAttente, relances, upcomingInterviews,
+  weekCount, weekHistory, objectif, editingObjectif, objectifInput, setObjectifInput,
+  setEditingObjectif, saveObjectif, navigate, userName, formation, targetDate }) {
   const animTotal = useCountUp(stats.total);
   const animTaux = useCountUp(tauxReponse);
   const animEntretiens = useCountUp(entretiens);
@@ -232,7 +335,6 @@ function DashboardInner({ stats, tauxReponse, entretiens, enAttente, relances, u
         </div>
       </div>
 
-      {/* COUNTDOWN + TIP */}
       <div className="dash-countdown-grid">
         <CountdownCard formation={formation} targetDate={targetDate} />
         <TipCard />
@@ -292,6 +394,9 @@ function DashboardInner({ stats, tauxReponse, entretiens, enAttente, relances, u
           </div>
         );
       })()}
+
+      {/* SPARKLINE HISTORIQUE */}
+      <WeekSparkline weekHistory={weekHistory} objectif={objectif} />
 
       {upcomingInterviews.length > 0 && (
         <div className="interview-alert">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { api } from '../hooks/api';
 import './Settings.css';
 
@@ -20,6 +20,13 @@ export default function Settings() {
   const [saved, setSaved]       = useState(false);
   const [importText, setImportText] = useState('');
   const [importStatus, setImportStatus] = useState('');
+  const [restoreStatus, setRestoreStatus] = useState('');
+  const [resetStatus, setResetStatus] = useState('');
+  const [notifPerm, setNotifPerm] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'denied');
+  const [toast, setToast] = useState('');
+  const restoreRef = useRef(null);
+
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3500); };
 
   const save = () => {
     set('user_name', name);
@@ -30,17 +37,51 @@ export default function Settings() {
     setTimeout(() => setSaved(false), 2500);
   };
 
+  // Export complet (candidatures + échanges)
   const exportData = async () => {
-    const cands = await api.get('/api/candidatures');
-    const blob = new Blob([JSON.stringify(cands, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `alternance-backup-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const data = await api.get('/api/backup');
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `alternance-backup-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast(`✅ Backup complet exporté (${data.candidatures.length} candidatures, ${data.echanges.length} échanges)`);
+    } catch {
+      showToast('❌ Erreur lors de l\'export');
+    }
   };
 
+  // Restore depuis fichier JSON
+  const handleRestoreFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const payload = Array.isArray(data)
+        ? { candidatures: data, echanges: [] }
+        : data;
+      if (!payload.candidatures?.length) {
+        setRestoreStatus('❌ Fichier invalide ou vide');
+        return;
+      }
+      if (!window.confirm(`Restaurer ${payload.candidatures.length} candidatures et ${payload.echanges?.length || 0} échanges ?\n\nATTENTION : toutes les données actuelles seront remplacées.`)) {
+        e.target.value = '';
+        return;
+      }
+      const result = await api.post('/api/restore', payload);
+      setRestoreStatus(`✅ Restauré : ${result.candidatures} candidatures, ${result.echanges} échanges`);
+      setTimeout(() => setRestoreStatus(''), 5000);
+    } catch {
+      setRestoreStatus('❌ Fichier invalide');
+    }
+    e.target.value = '';
+  };
+
+  // Import CSV
   const importCSV = async () => {
     if (!importText.trim()) return;
     const lines = importText.trim().split('\n');
@@ -78,6 +119,48 @@ export default function Settings() {
     setTimeout(() => setImportStatus(''), 4000);
   };
 
+  // Notifications
+  const requestNotif = async () => {
+    if (typeof Notification === 'undefined') {
+      showToast('❌ Notifications non supportées dans ce navigateur');
+      return;
+    }
+    const result = await Notification.requestPermission();
+    setNotifPerm(result);
+    if (result === 'granted') showToast('✅ Notifications activées ! Tu seras alerté J-1 avant chaque entretien.');
+    else showToast('❌ Permission refusée — vérifie les paramètres de ton navigateur');
+  };
+
+  const testNotif = () => {
+    try {
+      new Notification('🎯 Test — AlternanceTracker', {
+        body: 'Les notifications fonctionnent correctement !',
+        icon: '/favicon.ico',
+      });
+    } catch { showToast('❌ Erreur lors du test'); }
+  };
+
+  // Reset toutes les données
+  const resetAll = async () => {
+    if (!window.confirm('ATTENTION : supprimer TOUTES les candidatures et échanges ?\n\nCette action est irréversible.')) return;
+    if (!window.confirm('Confirme une deuxième fois — TOUTES les données seront perdues.')) return;
+    await api.delete('/api/reset');
+    setResetStatus('✅ Toutes les données supprimées');
+    showToast('🗑️ Données réinitialisées');
+    setTimeout(() => setResetStatus(''), 4000);
+  };
+
+  // Effacer l'historique hebdomadaire
+  const clearWeekHistory = () => {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('week_hist_'));
+    keys.forEach(k => localStorage.removeItem(k));
+    localStorage.removeItem('last_interview_notif');
+    showToast('✅ Historique hebdomadaire effacé');
+  };
+
+  const notifLabel = notifPerm === 'granted' ? '✅ Activées' : notifPerm === 'denied' ? '❌ Bloquées' : '⚠️ Non demandées';
+  const notifColor = notifPerm === 'granted' ? 'var(--green)' : notifPerm === 'denied' ? 'var(--red)' : 'var(--orange)';
+
   return (
     <div className="settings-page">
       <h1 className="page-title">⚙️ Paramètres</h1>
@@ -109,21 +192,62 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* DONNÉES */}
+        {/* NOTIFICATIONS */}
         <div className="settings-card">
-          <h2 className="settings-section-title">📦 Mes données</h2>
+          <h2 className="settings-section-title">🔔 Notifications</h2>
           <div className="settings-actions">
             <div className="settings-action-item">
               <div>
-                <div className="settings-action-title">Exporter (JSON)</div>
-                <div className="settings-action-desc">Télécharge toutes tes candidatures en JSON pour les sauvegarder.</div>
+                <div className="settings-action-title">Statut</div>
+                <div className="settings-action-desc" style={{color: notifColor, fontWeight:600}}>{notifLabel}</div>
+                <div className="settings-action-desc" style={{marginTop:4}}>
+                  Reçois une notification la veille de chaque entretien planifié.
+                </div>
+              </div>
+              {notifPerm !== 'granted' && (
+                <button className="btn-settings-action btn-settings-action-green" onClick={requestNotif}>
+                  🔔 Activer
+                </button>
+              )}
+              {notifPerm === 'granted' && (
+                <button className="btn-settings-action" onClick={testNotif}>
+                  🧪 Tester
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* DONNÉES */}
+        <div className="settings-card">
+          <h2 className="settings-section-title">📦 Sauvegarde & Restauration</h2>
+          <div className="settings-actions">
+            <div className="settings-action-item">
+              <div>
+                <div className="settings-action-title">Exporter (JSON complet)</div>
+                <div className="settings-action-desc">Télécharge toutes tes candidatures ET échanges en JSON.</div>
               </div>
               <button className="btn-settings-action" onClick={exportData}>⬇ Exporter</button>
             </div>
-          </div>
 
+            <div className="settings-action-item">
+              <div>
+                <div className="settings-action-title">Restaurer depuis un backup</div>
+                <div className="settings-action-desc">Importe un fichier JSON exporté depuis ce site. Remplace toutes les données actuelles.</div>
+                {restoreStatus && <div className="settings-status" style={{marginTop:6}}>{restoreStatus}</div>}
+              </div>
+              <button className="btn-settings-action" onClick={() => restoreRef.current?.click()}>
+                ⬆ Restaurer
+              </button>
+              <input ref={restoreRef} type="file" accept=".json" style={{display:'none'}} onChange={handleRestoreFile} />
+            </div>
+          </div>
+        </div>
+
+        {/* IMPORT CSV */}
+        <div className="settings-card">
+          <h2 className="settings-section-title">📥 Importer un CSV</h2>
           <div className="settings-import">
-            <div className="settings-action-title" style={{marginBottom:10}}>📥 Importer un CSV</div>
             <div className="settings-action-desc" style={{marginBottom:12}}>
               Colle le contenu d'un fichier CSV. Colonnes reconnues : <code>entreprise, poste, statut, localisation, source, date, notes, contact</code>
             </div>
@@ -143,6 +267,32 @@ export default function Settings() {
           </div>
         </div>
 
+        {/* ZONE DANGER */}
+        <div className="settings-card settings-card-danger">
+          <h2 className="settings-section-title settings-danger-title">⚠️ Zone de danger</h2>
+          <div className="settings-actions">
+            <div className="settings-action-item">
+              <div>
+                <div className="settings-action-title">Effacer l'historique hebdomadaire</div>
+                <div className="settings-action-desc">Remet à zéro le graphique de suivi hebdomadaire dans le Dashboard.</div>
+              </div>
+              <button className="btn-settings-action btn-settings-danger-light" onClick={clearWeekHistory}>
+                🗑 Effacer
+              </button>
+            </div>
+            <div className="settings-action-item">
+              <div>
+                <div className="settings-action-title">Supprimer toutes les données</div>
+                <div className="settings-action-desc">Efface définitivement toutes les candidatures et échanges.</div>
+                {resetStatus && <div className="settings-status" style={{marginTop:6,color:'var(--green)'}}>{resetStatus}</div>}
+              </div>
+              <button className="btn-settings-action btn-settings-danger" onClick={resetAll}>
+                ⚠️ Tout supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* RACCOURCIS */}
         <div className="settings-card settings-card-full">
           <h2 className="settings-section-title">⌨️ Raccourcis clavier</h2>
@@ -150,7 +300,8 @@ export default function Settings() {
             {[
               ['N', 'Nouvelle candidature'],
               ['/', 'Chercher une candidature'],
-              ['Échap', 'Fermer la modal'],
+              ['Ctrl+K', 'Recherche globale'],
+              ['Échap', 'Fermer la modal / recherche'],
               ['Entrée', 'Valider dans les champs'],
             ].map(([key, desc]) => (
               <div className="shortcut-row" key={key}>
@@ -161,6 +312,8 @@ export default function Settings() {
           </div>
         </div>
       </div>
+
+      {toast && <div className="settings-toast">{toast}</div>}
     </div>
   );
 }
