@@ -323,7 +323,7 @@ export default function App() {
     return <Auth onAuth={(email) => setUserEmail(email)} />;
   }
 
-  return <AppInner userEmail={userEmail} onLogout={() => {
+  return <AppInner key={userEmail} userEmail={userEmail} onLogout={() => {
     localStorage.removeItem('token');
     localStorage.removeItem('user_email');
     setUserEmail(null);
