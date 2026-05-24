@@ -351,34 +351,70 @@
       });
     });
 
-    // Waitlist forms — appel direct à notre API Render
+    // ── Waitlist ──
     const API = 'https://alternance-tracker.onrender.com/api/waitlist';
+
+    // Réveille le serveur Render dès le chargement de la page
+    fetch(API).catch(() => {});
+
+    async function postWaitlist(data) {
+      const ctrl = new AbortController();
+      const timeout = setTimeout(() => ctrl.abort(), 55000);
+      try {
+        const res = await fetch(API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+          signal: ctrl.signal,
+        });
+        clearTimeout(timeout);
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Erreur serveur');
+        return json;
+      } catch(e) {
+        clearTimeout(timeout);
+        throw e;
+      }
+    }
+
     document.querySelectorAll('form[data-waitlist]').forEach(form => {
+      const btn = form.querySelector('button[type="submit"]');
+      const originalText = btn.textContent;
+
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const btn = form.querySelector('button[type="submit"]');
         const data = Object.fromEntries(new FormData(form));
-        btn.textContent = '⏳ Envoi…'; btn.disabled = true;
+        btn.disabled = true;
+
+        // Tentative 1
+        btn.textContent = '⏳ Envoi…';
         try {
-          const res = await fetch(API, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
-          });
-          const json = await res.json();
-          if (res.ok && json.success) {
-            window.location.href = 'merci.html';
-          } else {
-            throw new Error(json.error || 'Erreur');
+          await postWaitlist(data);
+          window.location.href = 'merci.html';
+          return;
+        } catch(err1) {
+          // Si timeout ou réseau : le serveur était endormi → on réessaie
+          if (err1.name === 'AbortError' || err1.message === 'Failed to fetch') {
+            btn.textContent = '⏳ Démarrage du serveur… (30s)';
+            await new Promise(r => setTimeout(r, 8000));
+            btn.textContent = '⏳ Presque prêt…';
+            try {
+              await postWaitlist(data);
+              window.location.href = 'merci.html';
+              return;
+            } catch(err2) {
+              // Échec définitif
+            }
           }
-        } catch(err) {
-          btn.textContent = '❌ ' + (err.message === 'Failed to fetch' ? 'Serveur indisponible, réessaie' : err.message);
+          btn.textContent = '❌ Réessaie dans quelques secondes';
           btn.style.background = '#EF4444';
-          setTimeout(() => { btn.textContent = form.dataset.btnText || 'Je veux accès en avant-première ✨'; btn.style.background = ''; btn.disabled = false; }, 3000);
+          setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.background = '';
+            btn.disabled = false;
+          }, 4000);
         }
       });
-      const btn = form.querySelector('button[type="submit"]');
-      if (btn) form.dataset.btnText = btn.textContent;
     });
 
     // Navbar scroll effect
