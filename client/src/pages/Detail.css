@@ -393,9 +393,23 @@
 /* ── Responsive ── */
 @media (max-width:768px) {
   .detail-grid { grid-template-columns:1fr; }
-  .detail-hero { flex-direction:column; }
+  .detail-hero { flex-direction:column; padding:20px; }
+  .detail-hero-left { gap:14px; }
   .detail-hero-right { flex-direction:row; align-items:center; width:100%; justify-content:space-between; }
-  .detail-entreprise { font-size:1.4rem; }
-  .map-iframe { height:200px; }
+  .detail-hero-actions { flex-wrap:wrap; gap:6px; }
+  .detail-entreprise { font-size:1.35rem; }
+  .map-iframe { height:180px; }
   .detail-topbar { flex-wrap:wrap; gap:8px; }
+  .btn-edit, .btn-save-primary, .btn-cancel { padding:9px 14px; font-size:0.8rem; }
+  .back-btn { font-size:0.8rem; padding:7px 14px; }
+  .btn-delete-outline { font-size:0.8rem; padding:7px 14px; }
+  .toast { bottom:110px; }
+}
+@media (max-width:480px) {
+  .detail-hero-left { flex-direction:column; }
+  .company-logo, .detail-avatar-fallback { width:52px; height:52px; font-size:1.3rem; }
+  .templates-list { flex-direction:column; }
+  .btn-template { justify-content:center; }
+  .card-title-row { flex-wrap:wrap; gap:8px; }
+  .delete-confirm-banner { flex-direction:column; align-items:flex-start; }
 }

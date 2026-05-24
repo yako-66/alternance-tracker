@@ -361,14 +361,31 @@
 /* ── Responsive ── */
 @media (max-width:1200px) { .kanban { grid-template-columns:repeat(3,1fr); } }
 @media (max-width:700px) {
-  .kanban { grid-template-columns:repeat(2,1fr); }
+  .kanban {
+    grid-template-columns:repeat(6,minmax(200px,220px));
+    overflow-x:auto; -webkit-overflow-scrolling:touch;
+    scrollbar-width:none; padding-bottom:4px;
+  }
+  .kanban::-webkit-scrollbar { display:none; }
   .form-grid { grid-template-columns:1fr; }
-  .cand-card { flex-direction:column; align-items:flex-start; }
-  .cand-right { width:100%; justify-content:space-between; }
-  .filters { flex-direction:column; }
+  .cand-card { flex-direction:column; align-items:flex-start; padding:14px; gap:12px; }
+  .cand-right { width:100%; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+  .cand-score-row { display:none; }
+  .cand-actions { opacity:1; gap:6px; }
+  .icon-btn { width:42px; height:42px; font-size:1rem; border-radius:10px; }
+  .filters { flex-direction:column; gap:8px; }
   .filter-select, .sort-select { width:100%; }
+  .search-input { min-width:0; width:100%; }
   .cand-header-right { width:100%; justify-content:space-between; }
-  .cand-actions { opacity:1; }
+  .btn-export { display:none; }
   .cand-map, .cand-map-loading { display:none; }
-  .btn-export { width:100%; justify-content:center; }
+  .statut-select { padding:8px 26px 8px 10px; font-size:0.8rem; }
+  .toast { bottom:110px; }
+}
+@media (max-width:480px) {
+  .cand-avatar { width:38px; height:38px; font-size:0.95rem; border-radius:10px; }
+  .cand-entreprise { font-size:0.85rem; }
+  .cand-header-right { flex-direction:column; align-items:stretch; gap:8px; }
+  .view-toggle, .btn-primary { width:100%; justify-content:center; }
+  .view-btn { flex:1; text-align:center; }
 }

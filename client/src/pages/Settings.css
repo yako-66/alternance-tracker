@@ -93,4 +93,7 @@ code {
 @media (max-width:768px) {
   .settings-grid { grid-template-columns:1fr; }
   .shortcuts-grid { grid-template-columns:1fr; }
+  .settings-action-item { flex-direction:column; align-items:flex-start; }
+  .btn-settings-action { width:100%; justify-content:center; }
+  .btn-settings-save { width:100%; }
 }

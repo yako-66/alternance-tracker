@@ -191,3 +191,8 @@ select option { background:var(--surface); color:var(--text); }
   background:var(--surface);
 }
 [data-theme="dark"] select option { background:var(--bg2); color:var(--text); }
+
+/* ── Mobile — empêche le zoom iOS (font-size >= 16px requis) ── */
+@media (max-width:768px) {
+  input, textarea, select { font-size:16px; }
+}

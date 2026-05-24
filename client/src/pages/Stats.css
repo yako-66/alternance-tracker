@@ -237,3 +237,12 @@
   .stats-kpi { gap:10px; }
   .stats-kpi-num { font-size:2rem; }
 }
+@media (max-width:700px) {
+  .stats-grid { grid-template-columns:1fr; }
+  .donut-wrap { flex-direction:column; align-items:center; }
+  .donut-svg  { max-width:180px; }
+}
+@media (max-width:480px) {
+  .stats-kpi-num  { font-size:2rem; }
+  .stats-kpi-card { padding:16px 14px; }
+}
