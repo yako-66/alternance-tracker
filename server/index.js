@@ -189,20 +189,22 @@ async function callGemini({ system, messages, max_tokens = 1024 }) {
       return data.candidates[0].content.parts[0].text;
     }
     const err = await res.json().catch(() => ({}));
-    if (res.status === 404) continue; // modèle non dispo, essaie le suivant
+    console.error(`[Gemini] ${model} → ${res.status}:`, JSON.stringify(err));
+    if (res.status === 404) continue;
     if (res.status === 429) {
-      // attend 3s et réessaie le même modèle une fois
       await new Promise(r => setTimeout(r, 3000));
       const r2 = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
         { method: 'POST', headers: { 'content-type': 'application/json' }, body }
       );
       if (r2.ok) { const d = await r2.json(); return d.candidates[0].content.parts[0].text; }
-      continue; // essaie le modèle suivant
+      const e2 = await r2.json().catch(() => ({}));
+      console.error(`[Gemini] ${model} retry → ${r2.status}:`, JSON.stringify(e2));
+      continue;
     }
     throw new Error(`Gemini ${res.status}: ${err?.error?.message || JSON.stringify(err)}`);
   }
-  throw new Error('Tous les modèles Gemini sont indisponibles. Réessaie dans 1 minute.');
+  throw new Error('Tous les modèles Gemini ont échoué — vérifie les logs Render pour le détail.');
 }
 
 app.post('/api/ai/coach', async (req, res) => {
