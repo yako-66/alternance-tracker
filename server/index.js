@@ -157,22 +157,29 @@ app.get('/api/stats', (req, res) => {
   res.json({ total, byStatut, recent });
 });
 
-// ── AI routes (fetch natif — pas de SDK externe) ──
-async function callClaude({ system, messages, max_tokens = 1024 }) {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error('ANTHROPIC_API_KEY non configuré');
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens, system, messages }),
-  });
-  if (!res.ok) throw new Error(`Anthropic ${res.status}`);
+// ── AI routes (Gemini Flash — gratuit jusqu'à 1500 req/jour) ──
+async function callGemini({ system, messages, max_tokens = 1024 }) {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error('GEMINI_API_KEY non configuré');
+  const contents = messages.map(m => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }],
+  }));
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        ...(system && { systemInstruction: { parts: [{ text: system }] } }),
+        contents,
+        generationConfig: { maxOutputTokens: max_tokens },
+      }),
+    }
+  );
+  if (!res.ok) throw new Error(`Gemini ${res.status}`);
   const data = await res.json();
-  return data.content[0].text;
+  return data.candidates[0].content.parts[0].text;
 }
 
 app.post('/api/ai/coach', async (req, res) => {
@@ -181,7 +188,7 @@ app.post('/api/ai/coach', async (req, res) => {
     `- ${c.entreprise} (${c.poste||'?'}) : ${c.statut}, ${c.localisation||''}, ${c.date_candidature||''}`
   ).join('\n') || '(aucune candidature)';
   try {
-    const content = await callClaude({
+    const content = await callGemini({
       system: `Tu es un coach spécialisé dans la recherche d'alternance en France. Tu connais les candidatures de l'utilisateur :\n${ctx}\n\nRéponds en français, sois concis et actionnable. Max 3 paragraphes.`,
       messages: (messages||[]).slice(-10),
     });
@@ -192,7 +199,7 @@ app.post('/api/ai/coach', async (req, res) => {
 app.post('/api/ai/parse', async (req, res) => {
   const { text } = req.body;
   try {
-    const raw = await callClaude({
+    const raw = await callGemini({
       system: 'Tu extrais des informations structurées depuis une offre d\'emploi. Réponds UNIQUEMENT avec un JSON valide, aucun autre texte. Format : {"entreprise":"","poste":"","localisation":"","source":"","salaire":"","secteur":"","notes":""}',
       messages: [{ role: 'user', content: (text||'').slice(0, 4000) }],
       max_tokens: 512,
@@ -205,7 +212,7 @@ app.post('/api/ai/parse', async (req, res) => {
 app.post('/api/ai/cover-letter', async (req, res) => {
   const { candidature, profil } = req.body;
   try {
-    const letter = await callClaude({
+    const letter = await callGemini({
       system: 'Tu rédiges des lettres de motivation professionnelles pour des candidatures en alternance en France. Ton style : direct, enthousiaste, personnalisé. 3 paragraphes max.',
       messages: [{ role: 'user', content: `Rédige une lettre de motivation pour ce poste :\nEntreprise : ${candidature.entreprise}\nPoste : ${candidature.poste||'alternance'}\nLocalisation : ${candidature.localisation||''}\nSecteur : ${candidature.secteur||''}\n\nProfil du candidat :\n${profil || 'Étudiant en alternance recherchant une entreprise'}` }],
       max_tokens: 1500,
@@ -217,7 +224,7 @@ app.post('/api/ai/cover-letter', async (req, res) => {
 app.post('/api/ai/interview', async (req, res) => {
   const { messages, candidature } = req.body;
   try {
-    const content = await callClaude({
+    const content = await callGemini({
       system: `Tu joues le rôle d'un recruteur RH pour le poste de "${candidature?.poste||'alternant'}" chez "${candidature?.entreprise||'notre entreprise'}". Pose des questions d'entretien réalistes, une à la fois. Donne un feedback bref puis pose la suivante. Commence par te présenter. Réponds en français.`,
       messages: (messages||[]).slice(-10),
       max_tokens: 512,
