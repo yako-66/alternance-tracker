@@ -211,6 +211,16 @@
   margin-top:4px; text-align:right;
 }
 
+/* ── Conversion bar ── */
+.bar-fill-conv { background:linear-gradient(90deg, var(--green), #34D399) !important; }
+
+/* ── Prediction card ── */
+.stats-prediction-card { border:1.5px solid rgba(124,58,237,0.2); background:linear-gradient(135deg,var(--purple-pale),var(--surface)); }
+.prediction-body { text-align:center; padding:16px 0 8px; }
+.prediction-num { font-family:var(--font-display); font-size:3rem; font-weight:800; color:var(--purple); line-height:1; }
+.prediction-label { font-size:0.9rem; font-weight:600; color:var(--text); margin-top:8px; }
+.prediction-sub { font-size:0.78rem; color:var(--muted); margin-top:6px; }
+
 /* ── Dark mode ── */
 [data-theme="dark"] .stats-kpi-card:hover { box-shadow:var(--shadow-md); }
 [data-theme="dark"] .bar-fill { background:linear-gradient(90deg,var(--accent),var(--accent2)); }

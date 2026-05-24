@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { api } from '../hooks/api';
+import { ACHIEVEMENTS } from '../hooks/useAchievements';
 import './Settings.css';
 
 const DEFAULTS = {
@@ -23,8 +24,31 @@ export default function Settings() {
   const [restoreStatus, setRestoreStatus] = useState('');
   const [resetStatus, setResetStatus] = useState('');
   const [notifPerm, setNotifPerm] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'denied');
+  const [accentColor, setAccentColor] = useState(() => localStorage.getItem('accent_color') || '#7C3AED');
   const [toast, setToast] = useState('');
   const restoreRef = useRef(null);
+
+  const unlockedIds = JSON.parse(localStorage.getItem('achievements') || '[]');
+
+  const applyAccent = (color) => {
+    setAccentColor(color);
+    localStorage.setItem('accent_color', color);
+    document.documentElement.style.setProperty('--purple', color);
+    showToast('🎨 Couleur appliquée !');
+  };
+
+  const resetAccent = () => {
+    const def = '#7C3AED';
+    setAccentColor(def);
+    localStorage.removeItem('accent_color');
+    document.documentElement.style.removeProperty('--purple');
+    showToast('🎨 Couleur réinitialisée');
+  };
+
+  const exportPDF = () => {
+    showToast('🖨️ Ouverture impression…');
+    setTimeout(() => window.print(), 300);
+  };
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3500); };
 
@@ -264,6 +288,61 @@ export default function Settings() {
               </button>
               {importStatus && <span className="import-status">{importStatus}</span>}
             </div>
+          </div>
+        </div>
+
+        {/* THÈME COULEUR */}
+        <div className="settings-card">
+          <h2 className="settings-section-title">🎨 Thème couleur</h2>
+          <div className="settings-actions">
+            <div className="settings-action-item">
+              <div>
+                <div className="settings-action-title">Couleur d'accent</div>
+                <div className="settings-action-desc">Personnalise la couleur principale de l'interface.</div>
+              </div>
+              <div className="color-picker-wrap">
+                <input type="color" className="color-input" value={accentColor} onChange={e => applyAccent(e.target.value)} title="Choisir une couleur" />
+                <button className="btn-settings-action" onClick={resetAccent} title="Réinitialiser">↩ Réinit.</button>
+              </div>
+            </div>
+            <div className="color-presets">
+              {['#7C3AED','#2563EB','#059669','#DC2626','#D97706','#DB2777','#0891B2'].map(c => (
+                <button key={c} className={`color-preset ${accentColor === c ? 'active' : ''}`}
+                  style={{background:c}} onClick={() => applyAccent(c)} title={c} />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* EXPORT PDF */}
+        <div className="settings-card">
+          <h2 className="settings-section-title">🖨️ Export & Impression</h2>
+          <div className="settings-actions">
+            <div className="settings-action-item">
+              <div>
+                <div className="settings-action-title">Imprimer / Exporter en PDF</div>
+                <div className="settings-action-desc">Ouvre la fenêtre d'impression du navigateur. Choisis "Enregistrer en PDF" pour exporter.</div>
+              </div>
+              <button className="btn-settings-action" onClick={exportPDF}>🖨️ Imprimer</button>
+            </div>
+          </div>
+        </div>
+
+        {/* ACHIEVEMENTS */}
+        <div className="settings-card settings-card-full">
+          <h2 className="settings-section-title">🏆 Succès ({unlockedIds.length}/{ACHIEVEMENTS.length})</h2>
+          <div className="achievements-grid">
+            {ACHIEVEMENTS.map(a => {
+              const unlocked = unlockedIds.includes(a.id);
+              return (
+                <div key={a.id} className={`achievement-badge ${unlocked ? 'achievement-unlocked' : 'achievement-locked'}`} title={a.desc}>
+                  <div className="achievement-badge-icon">{a.icon}</div>
+                  <div className="achievement-badge-title">{a.title}</div>
+                  <div className="achievement-badge-desc">{a.desc}</div>
+                  {!unlocked && <div className="achievement-lock">🔒</div>}
+                </div>
+              );
+            })}
           </div>
         </div>
 

@@ -268,3 +268,73 @@
 
 [data-theme="dark"] .bottom-nav { background:rgba(26,21,48,0.95); }
 [data-theme="dark"] .navbar { box-shadow:0 1px 0 rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.2); }
+
+/* ── Notes rapides FAB ── */
+.qnotes-fab {
+  position:fixed; bottom:28px; right:24px; z-index:500;
+  width:52px; height:52px; border-radius:50%;
+  background:var(--gradient); color:white; font-size:1.3rem;
+  border:none; cursor:pointer;
+  box-shadow:0 4px 20px rgba(124,58,237,0.4);
+  transition:var(--t-spring);
+  display:flex; align-items:center; justify-content:center;
+}
+.qnotes-fab:hover { transform:scale(1.12) rotate(-5deg); box-shadow:0 8px 32px rgba(124,58,237,0.5); }
+.qnotes-fab.qnotes-fab-active { transform:scale(0.92); }
+
+@media (max-width:768px) { .qnotes-fab { bottom:88px; right:16px; } }
+
+/* ── Notes rapides panel ── */
+.qnotes-overlay {
+  position:fixed; inset:0; z-index:600;
+  animation:fadeIn 0.15s ease both;
+}
+
+.qnotes-panel {
+  position:absolute; bottom:92px; right:24px;
+  width:340px; max-width:calc(100vw - 32px);
+  background:var(--surface);
+  border-radius:var(--radius); border:1px solid var(--border2);
+  box-shadow:0 16px 48px rgba(0,0,0,0.2);
+  display:flex; flex-direction:column; overflow:hidden;
+  animation:fadeInUp 0.22s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+
+@media (max-width:768px) { .qnotes-panel { bottom:160px; right:16px; } }
+
+.qnotes-header {
+  display:flex; align-items:center; gap:8px;
+  padding:12px 14px; border-bottom:1px solid var(--border2);
+  background:var(--bg);
+}
+.qnotes-title { font-weight:700; font-size:0.875rem; color:var(--text); }
+.qnotes-hint { font-size:0.68rem; color:var(--muted); flex:1; text-align:right; }
+.qnotes-close {
+  background:none; border:none; color:var(--muted); cursor:pointer;
+  font-size:0.9rem; width:22px; height:22px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  transition:var(--t);
+}
+.qnotes-close:hover { background:var(--red-bg); color:var(--red); }
+
+.qnotes-textarea {
+  flex:1; width:100%; min-height:180px; padding:14px;
+  background:var(--surface); border:none; outline:none; resize:none;
+  font-family:var(--font-body); font-size:0.875rem; color:var(--text);
+  line-height:1.6;
+}
+.qnotes-textarea::placeholder { color:var(--muted); }
+
+.qnotes-footer {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 14px; border-top:1px solid var(--border2);
+  background:var(--bg);
+}
+.qnotes-status { font-size:0.72rem; color:var(--muted); }
+.qnotes-save {
+  padding:6px 14px; border-radius:var(--radius-full);
+  background:var(--gradient); color:white; border:none;
+  font-size:0.78rem; font-weight:600; cursor:pointer;
+  transition:var(--t-spring);
+}
+.qnotes-save:hover { transform:translateY(-1px); box-shadow:var(--shadow-purple); }

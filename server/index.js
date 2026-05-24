@@ -33,10 +33,10 @@ app.get('/api/candidatures', (req, res) => {
 });
 
 app.post('/api/candidatures', (req, res) => {
-  const { entreprise, poste, source, date_candidature, contact, statut, notes, localisation, priorite, score, date_entretien } = req.body;
+  const { entreprise, poste, source, date_candidature, contact, statut, notes, localisation, priorite, score, date_entretien, archived, tags } = req.body;
   const result = run(
-    'INSERT INTO candidatures (entreprise,poste,source,date_candidature,contact,statut,notes,localisation,priorite,score,date_entretien) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-    [entreprise, poste||'', source||'', date_candidature||'', contact||'', statut||'Postulé', notes||'', localisation||'', priorite||0, score||0, date_entretien||'']
+    'INSERT INTO candidatures (entreprise,poste,source,date_candidature,contact,statut,notes,localisation,priorite,score,date_entretien,archived,tags) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    [entreprise, poste||'', source||'', date_candidature||'', contact||'', statut||'Postulé', notes||'', localisation||'', priorite||0, score||0, date_entretien||'', archived||0, tags||'']
   );
   res.json(query('SELECT * FROM candidatures WHERE id = ?', [result.lastInsertRowid])[0]);
 });
@@ -44,10 +44,10 @@ app.post('/api/candidatures', (req, res) => {
 app.put('/api/candidatures/:id', (req, res) => {
   const cid = parseInt(req.params.id);
   const current = query('SELECT * FROM candidatures WHERE id=?', [cid])[0];
-  const { entreprise, poste, source, date_candidature, contact, statut, notes, localisation, priorite, score, date_entretien } = req.body;
+  const { entreprise, poste, source, date_candidature, contact, statut, notes, localisation, priorite, score, date_entretien, archived, tags } = req.body;
   run(
-    'UPDATE candidatures SET entreprise=?,poste=?,source=?,date_candidature=?,contact=?,statut=?,notes=?,localisation=?,priorite=?,score=?,date_entretien=? WHERE id=?',
-    [entreprise, poste||'', source||'', date_candidature||'', contact||'', statut, notes||'', localisation||'', priorite||0, score||0, date_entretien||'', cid]
+    'UPDATE candidatures SET entreprise=?,poste=?,source=?,date_candidature=?,contact=?,statut=?,notes=?,localisation=?,priorite=?,score=?,date_entretien=?,archived=?,tags=? WHERE id=?',
+    [entreprise, poste||'', source||'', date_candidature||'', contact||'', statut, notes||'', localisation||'', priorite||0, score||0, date_entretien||'', archived||0, tags||'', cid]
   );
   if (current && current.statut !== statut) {
     run('INSERT INTO echanges (candidature_id,type,contenu,date) VALUES (?,?,?,?)',
@@ -92,8 +92,8 @@ app.post('/api/restore', (req, res) => {
   run('DELETE FROM echanges', []);
   run('DELETE FROM candidatures', []);
   for (const c of candidatures) {
-    run('INSERT INTO candidatures (entreprise,poste,source,date_candidature,contact,statut,notes,localisation,priorite,score,date_entretien) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-      [c.entreprise, c.poste||'', c.source||'', c.date_candidature||'', c.contact||'', c.statut||'Postulé', c.notes||'', c.localisation||'', c.priorite||0, c.score||0, c.date_entretien||'']
+    run('INSERT INTO candidatures (entreprise,poste,source,date_candidature,contact,statut,notes,localisation,priorite,score,date_entretien,archived,tags) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+      [c.entreprise, c.poste||'', c.source||'', c.date_candidature||'', c.contact||'', c.statut||'Postulé', c.notes||'', c.localisation||'', c.priorite||0, c.score||0, c.date_entretien||'', c.archived||0, c.tags||'']
     );
   }
   const newIds = query('SELECT id FROM candidatures ORDER BY id ASC', []).map(r => r.id);

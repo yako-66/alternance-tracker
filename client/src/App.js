@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Dashboard from './pages/Dashboard';
 import Candidatures from './pages/Candidatures';
 import Detail from './pages/Detail';
@@ -36,16 +36,14 @@ function GlobalSearch({ navigate, onClose }) {
       c.localisation?.toLowerCase().includes(q) ||
       c.notes?.toLowerCase().includes(q) ||
       c.contact?.toLowerCase().includes(q) ||
-      c.source?.toLowerCase().includes(q)
+      c.source?.toLowerCase().includes(q) ||
+      c.tags?.toLowerCase().includes(q)
     ).slice(0, 8);
     setResults(found);
     setActiveIdx(0);
   }, [val, allCands]);
 
-  const go = (c) => {
-    navigate('detail', c.id);
-    onClose();
-  };
+  const go = (c) => { navigate('detail', c.id); onClose(); };
 
   const handleKey = (e) => {
     if (e.key === 'Escape') { onClose(); return; }
@@ -62,7 +60,7 @@ function GlobalSearch({ navigate, onClose }) {
           <input
             ref={inputRef}
             className="gsearch-input"
-            placeholder="Rechercher une entreprise, poste, ville, contact…"
+            placeholder="Rechercher entreprise, poste, ville, tag…"
             value={val}
             onChange={e => setVal(e.target.value)}
             onKeyDown={handleKey}
@@ -92,16 +90,55 @@ function GlobalSearch({ navigate, onClose }) {
             ))}
           </div>
         )}
-
-        {val && results.length === 0 && (
-          <div className="gsearch-empty">Aucun résultat pour « {val} »</div>
-        )}
-
+        {val && results.length === 0 && <div className="gsearch-empty">Aucun résultat pour « {val} »</div>}
         {!val && (
           <div className="gsearch-hint">
-            Tape pour rechercher dans toutes tes candidatures · <kbd>↑↓</kbd> pour naviguer · <kbd>Entrée</kbd> pour ouvrir
+            Tape pour rechercher · <kbd>↑↓</kbd> naviguer · <kbd>Entrée</kbd> ouvrir
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function QuickNotes({ onClose }) {
+  const [notes, setNotes] = useState(() => localStorage.getItem('quick_notes') || '');
+  const [saved, setSaved] = useState(false);
+  const taRef = useRef(null);
+
+  useEffect(() => { taRef.current?.focus(); }, []);
+
+  const save = () => {
+    localStorage.setItem('quick_notes', notes);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1500);
+  };
+
+  const handleKey = (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); save(); }
+    if (e.key === 'Escape') onClose();
+  };
+
+  return (
+    <div className="qnotes-overlay" onClick={onClose}>
+      <div className="qnotes-panel" onClick={e => e.stopPropagation()}>
+        <div className="qnotes-header">
+          <span className="qnotes-title">📝 Notes rapides</span>
+          <span className="qnotes-hint">Ctrl+S pour sauvegarder</span>
+          <button className="qnotes-close" onClick={onClose}>✕</button>
+        </div>
+        <textarea
+          ref={taRef}
+          className="qnotes-textarea"
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+          onKeyDown={handleKey}
+          placeholder="Tes notes, idées, rappels… Tout ici."
+        />
+        <div className="qnotes-footer">
+          <span className="qnotes-status">{saved ? '✅ Sauvegardé !' : `${notes.length} caractères`}</span>
+          <button className="qnotes-save" onClick={save}>💾 Sauvegarder</button>
+        </div>
       </div>
     </div>
   );
@@ -110,28 +147,51 @@ function GlobalSearch({ navigate, onClose }) {
 export default function App() {
   const [page, setPage] = useState('dashboard');
   const [selectedId, setSelectedId] = useState(null);
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
+  const [darkMode, setDarkMode] = useState(() => {
+    const stored = localStorage.getItem('theme');
+    if (stored) return stored === 'dark';
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+  });
   const [showSearch, setShowSearch] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
 
+  // Sync theme to DOM + localStorage
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
     localStorage.setItem('theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
 
-  // Ctrl+K to open search
+  // Follow OS dark mode preference (only if user hasn't set one)
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e) => {
+      if (!localStorage.getItem('theme_manual')) setDarkMode(e.matches);
+    };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  // Apply saved accent color
+  useEffect(() => {
+    const color = localStorage.getItem('accent_color');
+    if (color) document.documentElement.style.setProperty('--purple', color);
+  }, []);
+
+  // Keyboard shortcuts
   useEffect(() => {
     const handler = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        setShowSearch(s => !s);
-      }
-      if (e.key === 'Escape') setShowSearch(false);
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); setShowSearch(s => !s); }
+      if (e.key === 'Escape') { setShowSearch(false); setShowNotes(false); }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, []);
 
   const navigate = (p, id = null) => { setPage(p); setSelectedId(id); window.scrollTo(0, 0); };
+
+  const toggleDark = () => {
+    setDarkMode(d => { localStorage.setItem('theme_manual', '1'); return !d; });
+  };
 
   const NAV = [
     { id:'dashboard',    label:'Dashboard',    icon:'📊' },
@@ -150,6 +210,7 @@ export default function App() {
   return (
     <div className="app">
       {showSearch && <GlobalSearch navigate={navigate} onClose={() => setShowSearch(false)} />}
+      {showNotes && <QuickNotes onClose={() => setShowNotes(false)} />}
 
       <nav className="navbar">
         <div className="nav-brand" onClick={() => navigate('dashboard')}>
@@ -169,7 +230,7 @@ export default function App() {
           <button className="search-trigger" onClick={() => setShowSearch(true)} title="Recherche globale (Ctrl+K)">
             🔍 <span className="search-trigger-hint">Ctrl+K</span>
           </button>
-          <button className="theme-toggle" onClick={() => setDarkMode(d => !d)} title={darkMode ? 'Mode clair' : 'Mode sombre'}>
+          <button className="theme-toggle" onClick={toggleDark} title={darkMode ? 'Mode clair' : 'Mode sombre'}>
             {darkMode ? '☀️' : '🌙'}
           </button>
           <button className="settings-btn" onClick={() => navigate('settings')} title="Paramètres">
@@ -207,6 +268,15 @@ export default function App() {
           <span>⚙️</span><span>Paramètres</span>
         </button>
       </nav>
+
+      {/* Notes rapides FAB */}
+      <button
+        className={`qnotes-fab ${showNotes ? 'qnotes-fab-active' : ''}`}
+        onClick={() => setShowNotes(s => !s)}
+        title="Notes rapides"
+      >
+        📝
+      </button>
     </div>
   );
 }

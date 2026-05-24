@@ -87,13 +87,25 @@ function CompletionBar({ c }) {
   );
 }
 
+function TagPills({ tags }) {
+  if (!tags) return null;
+  const list = tags.split(',').map(t => t.trim()).filter(Boolean);
+  if (!list.length) return null;
+  return (
+    <div className="tag-pills">
+      {list.map(t => <span key={t} className="tag-pill">{t}</span>)}
+    </div>
+  );
+}
+
 const STATUTS = ['Postulé','En attente','En attente de réponse','Entretien','Refus','Sans suite'];
 const STATUT_COLORS = {
   'Postulé':'#4ecdc4','En attente':'#ff9f43','En attente de réponse':'#ffd93d',
   'Entretien':'#00d4a0','Refus':'#ff6b6b','Sans suite':'#4a4a60'
 };
+const FOCUS_EXCLUDE = ['Refus','Sans suite'];
 
-const empty = { entreprise:'', poste:'', source:'', date_candidature:'', contact:'', statut:'Postulé', notes:'', localisation:'', priorite:0, score:0, date_entretien:'' };
+const empty = { entreprise:'', poste:'', source:'', date_candidature:'', contact:'', statut:'Postulé', notes:'', localisation:'', priorite:0, score:0, date_entretien:'', archived:0, tags:'' };
 
 function daysSince(dateStr) {
   if (!dateStr) return null;
@@ -104,35 +116,41 @@ function daysSince(dateStr) {
 }
 
 const TABLE_COLS = [
-  { key:'entreprise', label:'Entreprise', w:'22%' },
-  { key:'poste',      label:'Poste',      w:'20%' },
-  { key:'statut',     label:'Statut',     w:'14%' },
-  { key:'localisation',label:'Lieu',      w:'12%' },
-  { key:'date_candidature',label:'Date',  w:'10%' },
-  { key:'days',       label:'J+',         w:'6%'  },
-  { key:'score',      label:'Score',      w:'8%'  },
+  { key:'entreprise',      label:'Entreprise', w:'22%' },
+  { key:'poste',           label:'Poste',      w:'20%' },
+  { key:'statut',          label:'Statut',     w:'14%' },
+  { key:'localisation',    label:'Lieu',       w:'12%' },
+  { key:'date_candidature',label:'Date',       w:'10%' },
+  { key:'days',            label:'J+',         w:'6%'  },
+  { key:'score',           label:'Score',      w:'8%'  },
 ];
 
 export default function Candidatures({ navigate }) {
-  const [list, setList]               = useState([]);
-  const [loading, setLoading]         = useState(true);
-  const [search, setSearch]           = useState('');
+  const [list, setList]                 = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [search, setSearch]             = useState('');
   const [filterStatut, setFilterStatut] = useState('');
-  const [filterPrio, setFilterPrio]   = useState(false);
-  const [view, setView]               = useState('list');
-  const [showModal, setShowModal]     = useState(false);
-  const [editing, setEditing]         = useState(null);
-  const [form, setForm]               = useState(empty);
-  const [toast, setToast]             = useState('');
-  const [saving, setSaving]           = useState(false);
-  const [savedOk, setSavedOk]         = useState(false);
-  const [savedMsg, setSavedMsg]       = useState('');
-  const [sortKey, setSortKey]         = useState('recent');
+  const [filterPrio, setFilterPrio]     = useState(false);
+  const [filterFocus, setFilterFocus]   = useState(false);
+  const [filterArchived, setFilterArchived] = useState(false);
+  const [filterTag, setFilterTag]       = useState('');
+  const [view, setView]                 = useState('list');
+  const [showModal, setShowModal]       = useState(false);
+  const [editing, setEditing]           = useState(null);
+  const [form, setForm]                 = useState(empty);
+  const [toast, setToast]               = useState('');
+  const [saving, setSaving]             = useState(false);
+  const [savedOk, setSavedOk]           = useState(false);
+  const [savedMsg, setSavedMsg]         = useState('');
+  const [sortKey, setSortKey]           = useState('recent');
   const [tableSortKey, setTableSortKey] = useState('recent');
   const [tableSortDir, setTableSortDir] = useState('desc');
-  const [confetti, setConfetti]       = useState(false);
-  const [draggedId, setDraggedId]     = useState(null);
-  const [dragOverCol, setDragOverCol] = useState(null);
+  const [confetti, setConfetti]         = useState(false);
+  const [draggedId, setDraggedId]       = useState(null);
+  const [dragOverCol, setDragOverCol]   = useState(null);
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [selectMode, setSelectMode]     = useState(false);
+  const [selectedIds, setSelectedIds]   = useState(new Set());
   const searchRef = useRef(null);
 
   const load = useCallback(() => {
@@ -156,12 +174,21 @@ export default function Candidatures({ navigate }) {
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3200); };
 
+  // All unique tags across candidatures
+  const allTags = [...new Set(
+    list.flatMap(c => (c.tags||'').split(',').map(t => t.trim()).filter(Boolean))
+  )].sort();
+
   const filtered = list.filter(c => {
+    if (!filterArchived && c.archived) return false;
+    if (filterArchived && !c.archived) return false;
     const q = search.toLowerCase();
-    const matchSearch = !q || c.entreprise?.toLowerCase().includes(q) || c.poste?.toLowerCase().includes(q) || c.source?.toLowerCase().includes(q) || c.localisation?.toLowerCase().includes(q) || c.notes?.toLowerCase().includes(q) || c.contact?.toLowerCase().includes(q);
+    const matchSearch = !q || c.entreprise?.toLowerCase().includes(q) || c.poste?.toLowerCase().includes(q) || c.source?.toLowerCase().includes(q) || c.localisation?.toLowerCase().includes(q) || c.notes?.toLowerCase().includes(q) || c.contact?.toLowerCase().includes(q) || c.tags?.toLowerCase().includes(q);
     const matchStatut = !filterStatut || c.statut === filterStatut;
     const matchPrio = !filterPrio || c.priorite === 1;
-    return matchSearch && matchStatut && matchPrio;
+    const matchFocus = !filterFocus || !FOCUS_EXCLUDE.includes(c.statut);
+    const matchTag = !filterTag || (c.tags||'').split(',').map(t=>t.trim()).includes(filterTag);
+    return matchSearch && matchStatut && matchPrio && matchFocus && matchTag;
   });
 
   const STATUT_ORDER = ['Entretien','En attente de réponse','En attente','Postulé','Sans suite','Refus'];
@@ -179,20 +206,11 @@ export default function Candidatures({ navigate }) {
 
   const tableSorted = [...filtered].sort((a, b) => {
     let va, vb;
-    if (tableSortKey === 'days') {
-      va = daysSince(a.date_candidature) ?? 9999;
-      vb = daysSince(b.date_candidature) ?? 9999;
-    } else if (tableSortKey === 'score') {
-      va = a.score || 0; vb = b.score || 0;
-    } else if (tableSortKey === 'statut') {
-      va = STATUT_ORDER.indexOf(a.statut);
-      vb = STATUT_ORDER.indexOf(b.statut);
-    } else if (tableSortKey === 'recent') {
-      va = a.id; vb = b.id;
-    } else {
-      va = (a[tableSortKey] || '').toString().toLowerCase();
-      vb = (b[tableSortKey] || '').toString().toLowerCase();
-    }
+    if (tableSortKey === 'days') { va = daysSince(a.date_candidature) ?? 9999; vb = daysSince(b.date_candidature) ?? 9999; }
+    else if (tableSortKey === 'score') { va = a.score || 0; vb = b.score || 0; }
+    else if (tableSortKey === 'statut') { va = STATUT_ORDER.indexOf(a.statut); vb = STATUT_ORDER.indexOf(b.statut); }
+    else if (tableSortKey === 'recent') { va = a.id; vb = b.id; }
+    else { va = (a[tableSortKey] || '').toString().toLowerCase(); vb = (b[tableSortKey] || '').toString().toLowerCase(); }
     return tableSortDir === 'asc' ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
   });
 
@@ -202,10 +220,10 @@ export default function Candidatures({ navigate }) {
   };
 
   const exportCSV = () => {
-    const headers = ['Entreprise','Poste','Statut','Localisation','Source','Date','Contact','Notes','Score','Prioritaire'];
+    const headers = ['Entreprise','Poste','Statut','Localisation','Source','Date','Contact','Notes','Score','Prioritaire','Tags'];
     const rows = sorted.map(c => [
       c.entreprise, c.poste, c.statut, c.localisation, c.source,
-      c.date_candidature, c.contact, (c.notes||'').replace(/\n/g,' '), c.score||0, c.priorite?'Oui':'Non',
+      c.date_candidature, c.contact, (c.notes||'').replace(/\n/g,' '), c.score||0, c.priorite?'Oui':'Non', c.tags||'',
     ].map(v => `"${(v??'').toString().replace(/"/g,'""')}"`));
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob(['﻿' + csv], { type:'text/csv;charset=utf-8' });
@@ -217,11 +235,11 @@ export default function Candidatures({ navigate }) {
   };
 
   const openAdd = () => { setEditing(null); setForm({...empty, date_candidature: new Date().toISOString().split('T')[0]}); setShowModal(true); };
-  const openEdit = (c, e) => { e.stopPropagation(); setEditing(c); setForm({...c, priorite:c.priorite||0, score:c.score||0}); setShowModal(true); };
+  const openEdit = (c, e) => { e.stopPropagation(); setEditing(c); setForm({...c, priorite:c.priorite||0, score:c.score||0, tags:c.tags||'', archived:c.archived||0}); setShowModal(true); };
   const duplicate = (c, e) => {
     e.stopPropagation();
     setEditing(null);
-    setForm({...empty, ...c, id:undefined, entreprise:`${c.entreprise}`, date_candidature:new Date().toISOString().split('T')[0]});
+    setForm({...empty, ...c, id:undefined, date_candidature:new Date().toISOString().split('T')[0]});
     setShowModal(true);
     showToast('📋 Duplication — modifie et sauvegarde');
   };
@@ -235,25 +253,44 @@ export default function Candidatures({ navigate }) {
       else await api.post('/api/candidatures', form);
       setSaving(false);
       const msg = editing ? `${form.entreprise} modifiée !` : `${form.entreprise} ajoutée ! 🎉`;
-      setSavedMsg(msg);
-      setSavedOk(true);
+      setSavedMsg(msg); setSavedOk(true);
       if (form.statut === 'Entretien' && prevStatut !== 'Entretien') setConfetti(true);
       setTimeout(() => {
-        setShowModal(false);
-        setSavedOk(false);
-        setSavedMsg('');
+        setShowModal(false); setSavedOk(false); setSavedMsg('');
         load();
         showToast(editing ? `✅ Candidature modifiée !` : `✅ ${form.entreprise} ajoutée !`);
       }, 2400);
     } catch { setSaving(false); }
   };
 
-  const del = async (id, e) => {
+  // Undo delete — optimistic remove, real delete after 5s
+  const del = (id, e) => {
     e.stopPropagation();
-    if (window.confirm('Supprimer cette candidature ?')) {
-      await api.delete(`/api/candidatures/${id}`); load();
-      showToast('🗑️ Supprimée');
+    if (pendingDelete) {
+      clearTimeout(pendingDelete.timeoutId);
+      api.delete(`/api/candidatures/${pendingDelete.id}`);
     }
+    const cand = list.find(x => x.id === id);
+    setList(prev => prev.filter(x => x.id !== id));
+    const timeoutId = setTimeout(async () => {
+      await api.delete(`/api/candidatures/${id}`);
+      setPendingDelete(null);
+    }, 5000);
+    setPendingDelete({ id, cand, timeoutId });
+  };
+
+  const cancelDelete = () => {
+    if (!pendingDelete) return;
+    clearTimeout(pendingDelete.timeoutId);
+    setList(prev => [pendingDelete.cand, ...prev].sort((a,b) => b.id - a.id));
+    setPendingDelete(null);
+  };
+
+  const toggleArchive = async (c, e) => {
+    e.stopPropagation();
+    await api.put(`/api/candidatures/${c.id}`, {...c, archived: c.archived ? 0 : 1});
+    load();
+    showToast(c.archived ? `📤 ${c.entreprise} désarchivée` : `📦 ${c.entreprise} archivée`);
   };
 
   const quickStatut = async (id, statut, e) => {
@@ -289,6 +326,49 @@ export default function Candidatures({ navigate }) {
     await api.put(`/api/candidatures/${c.id}`, {...c, score}); load();
   };
 
+  // Multi-select
+  const toggleSelect = (id, e) => {
+    e.stopPropagation();
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+  const selectAll = () => setSelectedIds(new Set(sorted.map(c => c.id)));
+  const clearSelect = () => { setSelectedIds(new Set()); setSelectMode(false); };
+
+  const bulkArchive = async () => {
+    const count = selectedIds.size;
+    for (const id of selectedIds) {
+      const c = list.find(x => x.id === id);
+      if (c) await api.put(`/api/candidatures/${id}`, {...c, archived: 1});
+    }
+    clearSelect();
+    load();
+    showToast(`📦 ${count} candidature(s) archivée(s)`);
+  };
+
+  const bulkDelete = async () => {
+    const count = selectedIds.size;
+    if (!window.confirm(`Supprimer ${count} candidature(s) ? Cette action est irréversible.`)) return;
+    for (const id of selectedIds) await api.delete(`/api/candidatures/${id}`);
+    clearSelect();
+    load();
+    showToast(`🗑️ ${count} candidature(s) supprimée(s)`);
+  };
+
+  const bulkStatut = async (statut) => {
+    for (const id of selectedIds) {
+      const c = list.find(x => x.id === id);
+      if (c) await api.put(`/api/candidatures/${id}`, {...c, statut});
+    }
+    clearSelect();
+    load();
+    showToast(`📌 Statut mis à jour pour ${selectedIds.size} candidature(s)`);
+  };
+
+  // Drag & drop kanban
   const onDragStart = (e, id) => { setDraggedId(id); e.dataTransfer.effectAllowed = 'move'; };
   const onDragOver = (e, statut) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverCol(statut); };
   const onDragLeave = () => setDragOverCol(null);
@@ -304,13 +384,15 @@ export default function Candidatures({ navigate }) {
     setDraggedId(null);
   };
 
+  const activeFilters = (search || filterStatut || filterPrio || filterFocus || filterTag);
+
   return (
     <div className="cand-page">
       <Confetti active={confetti} onDone={() => setConfetti(false)} />
 
       <div className="cand-header">
         <h1 className="page-title">
-          Candidatures <span className="count-badge">{filtered.length}</span>
+          {filterArchived ? '📦 Archives' : 'Candidatures'} <span className="count-badge">{filtered.length}</span>
         </h1>
         <div className="cand-header-right">
           <div className="view-toggle">
@@ -318,6 +400,9 @@ export default function Candidatures({ navigate }) {
             <button className={view==='kanban'?'view-btn active':'view-btn'} onClick={() => setView('kanban')}>⊞ Kanban</button>
             <button className={view==='table'?'view-btn active':'view-btn'} onClick={() => setView('table')}>⊟ Tableau</button>
           </div>
+          <button className={`btn-select-mode ${selectMode ? 'active' : ''}`} onClick={() => { setSelectMode(s => !s); setSelectedIds(new Set()); }} title="Sélection multiple">
+            ☑ Sélect.
+          </button>
           <button className="btn-export" onClick={exportCSV} title="Exporter en CSV">⬇ CSV</button>
           <button className="btn-primary" onClick={openAdd} title="Nouvelle candidature (N)">+ Ajouter</button>
         </div>
@@ -335,6 +420,12 @@ export default function Candidatures({ navigate }) {
           <option value="">Tous les statuts</option>
           {STATUTS.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
+        {allTags.length > 0 && (
+          <select value={filterTag} onChange={e => setFilterTag(e.target.value)} className="filter-select">
+            <option value="">Tous les tags</option>
+            {allTags.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+        )}
         {view !== 'table' && (
           <select value={sortKey} onChange={e => setSortKey(e.target.value)} className="filter-select sort-select">
             <option value="recent">↕ Plus récent</option>
@@ -349,16 +440,40 @@ export default function Candidatures({ navigate }) {
         <button className={`btn-prio-filter ${filterPrio ? 'active' : ''}`} onClick={() => setFilterPrio(p => !p)}>
           🔥 Prioritaires
         </button>
-        {(search || filterStatut) && (
-          <button className="btn-reset-filters" onClick={() => { setSearch(''); setFilterStatut(''); }}>✕ Effacer</button>
+        <button className={`btn-prio-filter ${filterFocus ? 'active' : ''}`} onClick={() => setFilterFocus(f => !f)} title="Masquer Refus et Sans suite">
+          🎯 Focus
+        </button>
+        <button className={`btn-prio-filter ${filterArchived ? 'active' : ''}`} onClick={() => setFilterArchived(a => !a)} title="Voir les candidatures archivées">
+          📦 Archives
+        </button>
+        {activeFilters && (
+          <button className="btn-reset-filters" onClick={() => { setSearch(''); setFilterStatut(''); setFilterPrio(false); setFilterFocus(false); setFilterTag(''); }}>✕ Effacer</button>
         )}
       </div>
+
+      {/* Barre d'actions en mode sélection */}
+      {selectMode && (
+        <div className="bulk-bar">
+          <span className="bulk-count">{selectedIds.size} sélectionné(s)</span>
+          <button className="bulk-btn" onClick={selectAll}>Tout sélectionner</button>
+          {selectedIds.size > 0 && <>
+            <button className="bulk-btn bulk-btn-archive" onClick={bulkArchive}>📦 Archiver</button>
+            <select className="bulk-select" onChange={e => { if (e.target.value) bulkStatut(e.target.value); e.target.value=''; }}>
+              <option value="">📌 Changer statut…</option>
+              {STATUTS.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <button className="bulk-btn bulk-btn-danger" onClick={bulkDelete}>🗑️ Supprimer</button>
+          </>}
+          <button className="bulk-btn-cancel" onClick={clearSelect}>✕ Annuler</button>
+        </div>
+      )}
 
       {loading ? <SkeletonList /> : view === 'table' ? (
         <div className="cand-table-wrap">
           <table className="cand-table">
             <thead>
               <tr>
+                {selectMode && <th className="table-th th-check"><input type="checkbox" onChange={e => e.target.checked ? selectAll() : setSelectedIds(new Set())} /></th>}
                 {TABLE_COLS.map(col => (
                   <th key={col.key} style={{width:col.w}} onClick={() => handleTableSort(col.key)} className={`table-th ${tableSortKey===col.key?'th-active':''}`}>
                     {col.label}
@@ -372,9 +487,14 @@ export default function Candidatures({ navigate }) {
               {tableSorted.map((c, i) => {
                 const days = daysSince(c.date_candidature);
                 const urgent = days !== null && days >= 7 && ['Postulé','En attente'].includes(c.statut);
+                const isSelected = selectedIds.has(c.id);
                 return (
-                  <tr key={c.id} className={`table-row ${urgent?'table-row-urgent':''} ${c.priorite?'table-row-prio':''}`}
-                    onClick={() => navigate('detail', c.id)} style={{animationDelay:`${i*20}ms`}}>
+                  <tr key={c.id}
+                    className={`table-row ${urgent?'table-row-urgent':''} ${c.priorite?'table-row-prio':''} ${isSelected?'table-row-selected':''}`}
+                    onClick={() => selectMode ? toggleSelect(c.id, {stopPropagation:()=>{}}) : navigate('detail', c.id)}
+                    style={{animationDelay:`${i*20}ms`}}
+                  >
+                    {selectMode && <td onClick={e=>e.stopPropagation()}><input type="checkbox" checked={isSelected} onChange={e => toggleSelect(c.id, e)} /></td>}
                     <td className="td-entreprise">
                       <div className="td-ent-inner">
                         <div className="td-avatar">{(c.entreprise||'?')[0]}</div>
@@ -399,6 +519,7 @@ export default function Candidatures({ navigate }) {
                       <div className="table-actions">
                         <button className="icon-btn" title="Modifier" onClick={e => openEdit(c, e)}>✏️</button>
                         <button className="icon-btn" title="Dupliquer" onClick={e => duplicate(c, e)}>📋</button>
+                        <button className="icon-btn" title={c.archived ? 'Désarchiver' : 'Archiver'} onClick={e => toggleArchive(c, e)}>{c.archived ? '📤' : '📦'}</button>
                         <button className="icon-btn" title="Supprimer" onClick={e => del(c.id, e)}>🗑️</button>
                       </div>
                     </td>
@@ -406,7 +527,7 @@ export default function Candidatures({ navigate }) {
                 );
               })}
               {tableSorted.length === 0 && (
-                <tr><td colSpan={8} className="table-empty">Aucune candidature trouvée</td></tr>
+                <tr><td colSpan={selectMode?9:8} className="table-empty">Aucune candidature trouvée</td></tr>
               )}
             </tbody>
           </table>
@@ -416,14 +537,20 @@ export default function Candidatures({ navigate }) {
           {sorted.map((c, i) => {
             const days = daysSince(c.date_candidature);
             const urgent = days !== null && days >= 7 && ['Postulé','En attente'].includes(c.statut);
+            const isSelected = selectedIds.has(c.id);
             return (
               <div
-                className={`cand-card ${urgent ? 'urgent' : ''} ${c.priorite ? 'prioritaire' : ''}`}
+                className={`cand-card ${urgent ? 'urgent' : ''} ${c.priorite ? 'prioritaire' : ''} ${isSelected ? 'cand-card-selected' : ''}`}
                 key={c.id}
                 style={{animationDelay:`${i * 35}ms`}}
-                onClick={() => navigate('detail', c.id)}
+                onClick={() => selectMode ? toggleSelect(c.id, {stopPropagation:()=>{}}) : navigate('detail', c.id)}
               >
                 <CompletionBar c={c} />
+                {selectMode && (
+                  <div className="cand-select-check" onClick={e => toggleSelect(c.id, e)}>
+                    <input type="checkbox" checked={isSelected} onChange={() => {}} />
+                  </div>
+                )}
                 <div className="cand-left">
                   <div className="cand-avatar">{(c.entreprise||'?')[0]}</div>
                   <div>
@@ -440,11 +567,8 @@ export default function Candidatures({ navigate }) {
                       {c.contact && <span>👤 {c.contact}</span>}
                       {c.date_entretien && <span>🎯 Entretien {c.date_entretien}</span>}
                     </div>
-                    {c.score > 0 && (
-                      <div style={{marginTop:4}}>
-                        <StarDisplay score={c.score} />
-                      </div>
-                    )}
+                    {c.tags && <TagPills tags={c.tags} />}
+                    {c.score > 0 && <div style={{marginTop:4}}><StarDisplay score={c.score} /></div>}
                   </div>
                 </div>
                 {c.localisation && <MiniMap localisation={c.localisation} />}
@@ -468,6 +592,7 @@ export default function Candidatures({ navigate }) {
                     <button className="icon-btn" title="Relance rapide" onClick={e => quickRelance(c, e)}>📨</button>
                     <button className={`icon-btn ${c.priorite ? 'icon-btn-active' : ''}`} title={c.priorite ? 'Retirer priorité' : 'Prioritaire'} onClick={e => togglePriorite(c, e)}>🔥</button>
                     <button className="icon-btn" title="Dupliquer" onClick={e => duplicate(c, e)}>📋</button>
+                    <button className="icon-btn" title={c.archived ? 'Désarchiver' : 'Archiver'} onClick={e => toggleArchive(c, e)}>{c.archived ? '📤' : '📦'}</button>
                     <button className="icon-btn" onClick={e => openEdit(c, e)}>✏️</button>
                     <button className="icon-btn" onClick={e => del(c.id, e)}>🗑️</button>
                   </div>
@@ -478,14 +603,14 @@ export default function Candidatures({ navigate }) {
           {sorted.length === 0 && (
             <div className="empty">
               <div style={{fontSize:'2.5rem',marginBottom:12}}>🔍</div>
-              <div>Aucune candidature trouvée</div>
-              {(search || filterStatut) && <div style={{fontSize:'0.8rem',marginTop:6,color:'var(--muted)'}}>Essaie d'effacer tes filtres</div>}
+              <div>{filterArchived ? 'Aucune candidature archivée' : 'Aucune candidature trouvée'}</div>
+              {activeFilters && <div style={{fontSize:'0.8rem',marginTop:6,color:'var(--muted)'}}>Essaie d'effacer tes filtres</div>}
             </div>
           )}
         </div>
       ) : (
         <div className="kanban">
-          {STATUTS.map(statut => {
+          {STATUTS.filter(s => !filterFocus || !FOCUS_EXCLUDE.includes(s)).map(statut => {
             const cols = sorted.filter(c => c.statut === statut);
             return (
               <div
@@ -518,6 +643,7 @@ export default function Candidatures({ navigate }) {
                       <div className="kanban-poste">{c.poste}</div>
                       {c.localisation && <div className="kanban-loc">📍 {c.localisation}</div>}
                       {c.date_candidature && <div className="kanban-date">📅 {c.date_candidature}</div>}
+                      {c.tags && <TagPills tags={c.tags} />}
                       {c.score > 0 && <StarDisplay score={c.score} />}
                     </div>
                   ))}
@@ -564,6 +690,10 @@ export default function Candidatures({ navigate }) {
               <label>Contact</label>
               <input value={form.contact} onChange={e => setForm({...form, contact:e.target.value})} placeholder="Nom du recruteur" />
             </div>
+            <div className="form-group">
+              <label>Tags</label>
+              <input value={form.tags||''} onChange={e => setForm({...form, tags:e.target.value})} placeholder="Ex: cloud, stage, CDI (séparés par des virgules)" />
+            </div>
             <div className="form-group full">
               <label>Statut</label>
               <select value={form.statut} onChange={e => setForm({...form, statut:e.target.value})}>
@@ -594,6 +724,12 @@ export default function Candidatures({ navigate }) {
         </Modal>
       )}
 
+      {pendingDelete && (
+        <div className="toast toast-undo">
+          🗑️ <strong>{pendingDelete.cand?.entreprise}</strong> supprimée dans 5s…
+          <button className="toast-undo-btn" onClick={cancelDelete}>Annuler</button>
+        </div>
+      )}
       {toast && <div className="toast">{toast}</div>}
     </div>
   );

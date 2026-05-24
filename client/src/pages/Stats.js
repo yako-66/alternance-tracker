@@ -121,6 +121,21 @@ export default function Stats() {
       }, 0) / responded.length)
     : null;
 
+  // Conversion par source (entretiens obtenus)
+  const sourceConv = Object.entries(bySource).map(([source, total]) => {
+    const interviews = list.filter(c => (c.source || 'Non renseigné') === source && c.statut === 'Entretien').length;
+    return { source, total, interviews, rate: total > 0 ? ((interviews / total) * 100).toFixed(0) : 0 };
+  }).sort((a, b) => b.interviews - a.interviews || b.total - a.total).slice(0, 6);
+
+  // Prédiction — tendance des 4 dernières semaines actives
+  const activeWeeks = weeklyData.filter(w => w.count > 0);
+  const avgPerWeek = activeWeeks.length > 0
+    ? activeWeeks.reduce((s, w) => s + w.count, 0) / activeWeeks.length
+    : 0;
+  const targetDate = new Date(localStorage.getItem('user_target_date') || '2026-10-01');
+  const weeksLeft = Math.max(0, Math.ceil((targetDate - new Date()) / (7 * 24 * 3600 * 1000)));
+  const projected = avgPerWeek > 0 ? Math.round(stats.total + avgPerWeek * weeksLeft) : null;
+
   return (
     <div className="stats-page">
       <h1 className="page-title">Statistiques 📈</h1>
@@ -281,6 +296,42 @@ export default function Stats() {
             })}
           </div>
         </div>
+
+        <div className="card">
+          <h2 className="card-title">🔄 Conversion par source</h2>
+          {sourceConv.length === 0 ? (
+            <p style={{color:'var(--muted)',fontSize:'0.85rem',textAlign:'center',padding:'24px 0'}}>Pas encore assez de données.</p>
+          ) : (
+            <div className="bar-chart">
+              {sourceConv.map(({ source, total, interviews, rate }) => (
+                <div className="bar-row" key={source}>
+                  <div className="bar-label" title={source}>{source}</div>
+                  <div className="bar-wrap">
+                    <div className="bar-fill bar-fill-conv"
+                      style={{width:`${Math.max((interviews / Math.max(...sourceConv.map(s => s.interviews), 1)) * 100, interviews > 0 ? 4 : 0)}%`}} />
+                  </div>
+                  <div className="bar-count">
+                    <span>{interviews} 🎯</span>
+                    <span style={{fontSize:'0.68rem',color:'var(--muted)',marginLeft:4}}>/ {total} ({rate}%)</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {projected !== null && (
+          <div className="card stats-prediction-card">
+            <h2 className="card-title">🔮 Projection</h2>
+            <div className="prediction-body">
+              <div className="prediction-num">{projected}</div>
+              <div className="prediction-label">candidatures prévues d'ici le {targetDate.toLocaleDateString('fr-FR',{day:'numeric',month:'long'})}</div>
+              <div className="prediction-sub">
+                à ce rythme ({avgPerWeek.toFixed(1)}/semaine) sur {weeksLeft} semaine{weeksLeft > 1 ? 's' : ''} restante{weeksLeft > 1 ? 's' : ''}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="card">
           <h2 className="card-title">⭐ Distribution des scores</h2>

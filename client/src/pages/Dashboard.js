@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { api } from '../hooks/api';
+import { useAchievements } from '../hooks/useAchievements';
 import './Dashboard.css';
 
 function useCountUp(target, duration = 900) {
@@ -218,8 +219,30 @@ function checkNotifications(upcomingInterviews) {
   }
 }
 
+function calcStreak(list) {
+  const days = new Set(
+    list.filter(c => c.date_candidature).map(c => {
+      const parts = c.date_candidature.includes('/') ? c.date_candidature.split('/').reverse() : c.date_candidature.split('-');
+      return parts.join('-');
+    })
+  );
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayKey = today.toISOString().split('T')[0];
+  // If today has a candidature, count from today; otherwise count from yesterday
+  const startOffset = days.has(todayKey) ? 0 : 1;
+  let streak = 0;
+  for (let i = startOffset; i < 365; i++) {
+    const d = new Date(today); d.setDate(today.getDate() - i);
+    if (days.has(d.toISOString().split('T')[0])) streak++;
+    else if (i > startOffset) break;
+    else break;
+  }
+  return streak;
+}
+
 export default function Dashboard({ navigate }) {
   const [stats, setStats] = useState(null);
+  const [allList, setAllList] = useState([]);
   const [relances, setRelances] = useState([]);
   const [upcomingInterviews, setUpcomingInterviews] = useState([]);
   const [weekCount, setWeekCount] = useState(0);
@@ -227,6 +250,7 @@ export default function Dashboard({ navigate }) {
   const [objectif, setObjectif] = useState(() => Math.max(1, parseInt(localStorage.getItem('objectif_week') || '5')));
   const [editingObjectif, setEditingObjectif] = useState(false);
   const [objectifInput, setObjectifInput] = useState('');
+  const { newAchievement } = useAchievements(allList);
 
   const userName = localStorage.getItem('user_name') || 'Yakup';
   const userFormation = localStorage.getItem('user_formation') || 'Mastère Infra & Cloud Xpert';
@@ -235,6 +259,7 @@ export default function Dashboard({ navigate }) {
   useEffect(() => {
     api.get('/api/stats').then(setStats);
     api.get('/api/candidatures').then(all => {
+      setAllList(all);
       const toRelance = all.filter(c => {
         if (!['Postulé','En attente'].includes(c.statut)) return false;
         const days = daysSince(c.date_candidature);
@@ -286,21 +311,38 @@ export default function Dashboard({ navigate }) {
 
   const entretiens = stats.byStatut.find(s => s.statut === 'Entretien')?.count || 0;
   const enAttente = stats.byStatut.filter(s => ['En attente','En attente de réponse'].includes(s.statut)).reduce((a,b) => a + b.count, 0);
+  const streak = calcStreak(allList);
 
-  return <DashboardInner stats={stats} tauxReponse={tauxReponse} entretiens={entretiens} enAttente={enAttente}
-    relances={relances} upcomingInterviews={upcomingInterviews} weekCount={weekCount} weekHistory={weekHistory}
-    objectif={objectif} editingObjectif={editingObjectif} objectifInput={objectifInput}
-    setObjectifInput={setObjectifInput} setEditingObjectif={setEditingObjectif} saveObjectif={saveObjectif}
-    navigate={navigate} userName={userName} formation={userFormation} targetDate={userTargetDate} />;
+  return (
+    <>
+      <DashboardInner stats={stats} tauxReponse={tauxReponse} entretiens={entretiens} enAttente={enAttente}
+        streak={streak}
+        relances={relances} upcomingInterviews={upcomingInterviews} weekCount={weekCount} weekHistory={weekHistory}
+        objectif={objectif} editingObjectif={editingObjectif} objectifInput={objectifInput}
+        setObjectifInput={setObjectifInput} setEditingObjectif={setEditingObjectif} saveObjectif={saveObjectif}
+        navigate={navigate} userName={userName} formation={userFormation} targetDate={userTargetDate} />
+      {newAchievement && (
+        <div className="achievement-toast">
+          <span className="achievement-icon">{newAchievement.icon}</span>
+          <div>
+            <div className="achievement-title">Succès débloqué !</div>
+            <div className="achievement-name">{newAchievement.title}</div>
+            <div className="achievement-desc">{newAchievement.desc}</div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
-function DashboardInner({ stats, tauxReponse, entretiens, enAttente, relances, upcomingInterviews,
+function DashboardInner({ stats, tauxReponse, entretiens, enAttente, streak, relances, upcomingInterviews,
   weekCount, weekHistory, objectif, editingObjectif, objectifInput, setObjectifInput,
   setEditingObjectif, saveObjectif, navigate, userName, formation, targetDate }) {
   const animTotal = useCountUp(stats.total);
   const animTaux = useCountUp(tauxReponse);
   const animEntretiens = useCountUp(entretiens);
   const animEnAttente = useCountUp(enAttente);
+  const animStreak = useCountUp(streak);
 
   return (
     <div className="dashboard">
@@ -332,6 +374,11 @@ function DashboardInner({ stats, tauxReponse, entretiens, enAttente, relances, u
           <div className="kpi-icon">⏳</div>
           <div className="kpi-num" style={{color:'var(--orange)'}}>{animEnAttente}</div>
           <div className="kpi-label">En attente</div>
+        </div>
+        <div className="kpi-card" title="Jours consécutifs avec au moins une candidature">
+          <div className="kpi-icon">🔥</div>
+          <div className="kpi-num" style={{color:'#F97316'}}>{animStreak}</div>
+          <div className="kpi-label">Jours de suite</div>
         </div>
       </div>
 

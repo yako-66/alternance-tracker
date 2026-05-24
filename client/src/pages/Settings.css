@@ -115,10 +115,56 @@ code {
   padding:2px 6px; border-radius:4px;
 }
 
+/* ── Color picker ── */
+.color-picker-wrap { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+.color-input {
+  width:44px; height:38px; border-radius:var(--radius-xs);
+  border:1.5px solid var(--border2); cursor:pointer;
+  padding:2px; background:var(--surface);
+}
+.color-input::-webkit-color-swatch-wrapper { padding:2px; }
+.color-input::-webkit-color-swatch { border-radius:5px; border:none; }
+.color-presets { display:flex; flex-wrap:wrap; gap:8px; padding-top:10px; }
+.color-preset {
+  width:30px; height:30px; border-radius:50%;
+  border:2px solid transparent; cursor:pointer;
+  transition:var(--t-spring);
+}
+.color-preset:hover { transform:scale(1.2); }
+.color-preset.active { border-color:white; box-shadow:0 0 0 3px var(--purple); transform:scale(1.15); }
+
+/* ── Achievements ── */
+.achievements-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px; }
+.achievement-badge {
+  position:relative; padding:16px 14px;
+  border-radius:var(--radius); border:1.5px solid var(--border2);
+  background:var(--bg); text-align:center;
+  transition:var(--t);
+}
+.achievement-unlocked { border-color:rgba(124,58,237,0.3); background:var(--purple-pale); }
+.achievement-unlocked:hover { transform:translateY(-3px); box-shadow:var(--shadow-sm); }
+.achievement-locked { opacity:0.45; filter:grayscale(0.6); }
+.achievement-badge-icon { font-size:1.8rem; line-height:1; margin-bottom:7px; }
+.achievement-badge-title { font-size:0.8rem; font-weight:700; color:var(--text); margin-bottom:4px; }
+.achievement-badge-desc { font-size:0.68rem; color:var(--muted); line-height:1.4; }
+.achievement-lock { position:absolute; top:8px; right:8px; font-size:0.75rem; opacity:0.7; }
+
+/* ── Print / PDF ── */
+@media print {
+  .navbar, .bottom-nav, .qnotes-fab, .settings-btn, .theme-toggle, .search-trigger { display:none !important; }
+  .main { padding:0 !important; max-width:100% !important; }
+  .cand-card { break-inside:avoid; box-shadow:none !important; border:1px solid #ccc !important; }
+  .cand-actions, .icon-btn, .statut-select, .cand-score-row { display:none !important; }
+  .cand-map, .cand-map-loading { display:none !important; }
+  .btn-primary, .btn-export, .view-toggle, .filters, .sort-select { display:none !important; }
+  body { background:white !important; }
+}
+
 @media (max-width:768px) {
   .settings-grid { grid-template-columns:1fr; }
   .shortcuts-grid { grid-template-columns:1fr; }
   .settings-action-item { flex-direction:column; align-items:flex-start; }
   .btn-settings-action { width:100%; justify-content:center; }
   .btn-settings-save { width:100%; }
+  .achievements-grid { grid-template-columns:repeat(2,1fr); }
 }
