@@ -11,14 +11,18 @@ const geoCache = new Map();
 
 async function geocode(loc) {
   if (!loc) return null;
-  if (geoCache.has(loc)) return geoCache.get(loc);
+  const key = loc.trim();
+  if (geoCache.has(key)) return geoCache.get(key);
   try {
+    // n'ajoute France que si pas déjà présent
+    const query = key.toLowerCase().includes('france') ? key : `${key}, France`;
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(loc + ', France')}&format=json&limit=1`
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&accept-language=fr`
     );
+    if (!res.ok) { geoCache.set(key, null); return null; }
     const data = await res.json();
     const result = data[0] ? { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) } : null;
-    geoCache.set(loc, result);
+    geoCache.set(key, result);
     return result;
   } catch { return null; }
 }
@@ -71,6 +75,7 @@ export default function MapGlobale({ navigate }) {
       const addMarkers = async () => {
         for (const loc of locs) {
           const coords = await geocode(loc);
+          await new Promise(r => setTimeout(r, 350)); // respecte 1 req/s Nominatim
           done++;
           setGeocoded(done);
           if (!coords) continue;
@@ -124,6 +129,13 @@ export default function MapGlobale({ navigate }) {
   return (
     <div className="map-globale-page">
       <h1 className="page-title">🗺️ Carte des candidatures</h1>
+
+      {!loading && list.length > 0 && list.filter(c => c.localisation).length === 0 && (
+        <div className="map-no-data">
+          📍 Aucune candidature avec une localisation.<br/>
+          <span>Renseigne la ville dans tes candidatures pour les voir sur la carte.</span>
+        </div>
+      )}
 
       {loading && list.length > 0 && (
         <div className="map-loading-bar">
