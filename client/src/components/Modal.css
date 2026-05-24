@@ -92,27 +92,31 @@
 /* ── Success overlay ── */
 .modal-success {
   display:flex; flex-direction:column; align-items:center; justify-content:center;
-  padding:52px 32px; gap:16px;
-  background:linear-gradient(135deg, #F0FDF4, #ECFDF5);
-  flex:1;
-  animation:fadeIn 0.25s ease;
+  padding:56px 32px; gap:18px; min-height:320px;
+  background:linear-gradient(160deg, #ECFDF5 0%, #D1FAE5 60%, #A7F3D0 100%);
+  border-radius:inherit;
+  animation:scaleIn 0.3s var(--t-spring);
 }
 
-.modal-success-ring { position:relative; }
+.modal-success-ring {
+  position:relative;
+  filter:drop-shadow(0 8px 24px rgba(16,185,129,0.35));
+  animation:bounceIn 0.5s var(--t-spring);
+}
 
-.modal-success-svg { width:96px; height:96px; }
+.modal-success-svg { width:100px; height:100px; }
 
 .modal-success-circle {
   stroke-dasharray: 213.6;
   stroke-dashoffset: 213.6;
-  animation: successDraw 0.55s cubic-bezier(0.65,0,0.35,1) 0.1s forwards;
+  animation: successDraw 0.6s cubic-bezier(0.65,0,0.35,1) 0.05s forwards;
   transform-origin: center;
 }
 
 .modal-success-check {
   stroke-dasharray: 50;
   stroke-dashoffset: 50;
-  animation: checkDraw 0.35s ease 0.6s forwards;
+  animation: checkDraw 0.4s ease 0.6s forwards;
 }
 
 @keyframes successDraw {
@@ -124,10 +128,18 @@
 
 .modal-success-title {
   font-family:var(--font-display);
-  font-size:1.25rem; font-weight:800; color:#065F46;
-  text-align:center;
+  font-size:1.3rem; font-weight:800; color:#065F46;
+  text-align:center; letter-spacing:-0.02em;
+  animation:fadeInUp 0.4s 0.55s both;
 }
 .modal-success-sub {
-  font-size:0.78rem; color:#6EE7B7; font-weight:500;
-  animation:pulse 1.5s ease infinite;
+  font-size:0.8rem; color:#059669; font-weight:500;
+  animation:fadeInUp 0.4s 0.75s both;
 }
+
+/* ── Dark mode success ── */
+[data-theme="dark"] .modal-success {
+  background:linear-gradient(160deg, rgba(6,78,59,0.6) 0%, rgba(4,120,87,0.4) 60%, rgba(16,185,129,0.2) 100%);
+}
+[data-theme="dark"] .modal-success-title { color:#6EE7B7; }
+[data-theme="dark"] .modal-success-sub { color:#34D399; }

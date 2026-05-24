@@ -181,14 +181,17 @@ export default function Candidatures({ navigate }) {
       if (editing) await api.put(`/api/candidatures/${editing.id}`, form);
       else await api.post('/api/candidatures', form);
       setSaving(false);
-      setSavedMsg(editing ? `${form.entreprise} modifiée !` : `${form.entreprise} ajoutée !`);
+      const msg = editing ? `${form.entreprise} modifiée !` : `${form.entreprise} ajoutée ! 🎉`;
+      setSavedMsg(msg);
       setSavedOk(true);
-      load();
       if (form.statut === 'Entretien' && prevStatut !== 'Entretien') setConfetti(true);
       setTimeout(() => {
-        setShowModal(false); setSavedOk(false); setSavedMsg('');
-        showToast(editing ? `✅ Candidature modifiée !` : `✅ Candidature ajoutée !`);
-      }, 1400);
+        setShowModal(false);
+        setSavedOk(false);
+        setSavedMsg('');
+        load();
+        showToast(editing ? `✅ Candidature modifiée !` : `✅ ${form.entreprise} ajoutée !`);
+      }, 2400);
     } catch { setSaving(false); }
   };
 
