@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Merci ! — AlternanceTracker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #7C3AED, #9C27B0);
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      color: white; text-align: center; padding: 24px;
+    }
+    .card {
+      background: rgba(255,255,255,0.12); backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 24px; padding: 52px 40px; max-width: 480px;
+    }
+    .emoji { font-size: 4rem; margin-bottom: 20px; }
+    h1 { font-size: 2rem; font-weight: 900; margin-bottom: 12px; }
+    p { font-size: 1.05rem; color: rgba(255,255,255,0.85); line-height: 1.7; margin-bottom: 28px; }
+    a {
+      display: inline-block; background: white; color: #7C3AED;
+      font-weight: 700; font-size: 0.95rem; padding: 13px 28px;
+      border-radius: 9999px; text-decoration: none; transition: transform 0.2s;
+    }
+    a:hover { transform: scale(1.04); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="emoji">🎉</div>
+    <h1>Tu es sur la liste !</h1>
+    <p>On te contactera en avant-première dès que la bêta sera ouverte. Merci pour ta confiance !</p>
+    <a href="index.html">← Retour à l'accueil</a>
+  </div>
+</body>
+</html>
