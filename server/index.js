@@ -169,25 +169,40 @@ async function callGemini({ system, messages, max_tokens = 1024 }) {
     role: m.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: m.content }],
   }));
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${key}`,
-    {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        ...(system && { systemInstruction: { parts: [{ text: system }] } }),
-        contents,
-        generationConfig: { maxOutputTokens: max_tokens },
-      }),
+  const body = JSON.stringify({
+    ...(system && { systemInstruction: { parts: [{ text: system }] } }),
+    contents,
+    generationConfig: { maxOutputTokens: max_tokens },
+  });
+  const MODELS = [
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+  ];
+  for (const model of MODELS) {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+      { method: 'POST', headers: { 'content-type': 'application/json' }, body }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      return data.candidates[0].content.parts[0].text;
     }
-  );
-  if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    if (res.status === 429) throw new Error('Trop de requêtes — réessaie dans 30 secondes (quota gratuit Gemini)');
+    if (res.status === 404) continue; // modèle non dispo, essaie le suivant
+    if (res.status === 429) {
+      // attend 3s et réessaie le même modèle une fois
+      await new Promise(r => setTimeout(r, 3000));
+      const r2 = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+        { method: 'POST', headers: { 'content-type': 'application/json' }, body }
+      );
+      if (r2.ok) { const d = await r2.json(); return d.candidates[0].content.parts[0].text; }
+      continue; // essaie le modèle suivant
+    }
     throw new Error(`Gemini ${res.status}: ${err?.error?.message || JSON.stringify(err)}`);
   }
-  const data = await res.json();
-  return data.candidates[0].content.parts[0].text;
+  throw new Error('Tous les modèles Gemini sont indisponibles. Réessaie dans 1 minute.');
 }
 
 app.post('/api/ai/coach', async (req, res) => {
