@@ -59,8 +59,8 @@ function daysSince(dateStr) {
   return Math.floor((Date.now() - d.getTime()) / 86400000);
 }
 
-function CountdownCard() {
-  const TARGET = new Date('2026-10-01');
+function CountdownCard({ formation, targetDate }) {
+  const TARGET = new Date(targetDate || '2026-10-01');
   const SEARCH_START = new Date('2026-01-01');
   const now = new Date();
 
@@ -81,8 +81,8 @@ function CountdownCard() {
       <div className="countdown-header">
         <span className="countdown-icon">🎓</span>
         <div>
-          <div className="countdown-title">Mastère Infra &amp; Cloud Xpert</div>
-          <div className="countdown-sub">Rentrée — 1er octobre 2026</div>
+          <div className="countdown-title">{formation || 'Mastère Infra & Cloud Xpert'}</div>
+          <div className="countdown-sub">Rentrée — {TARGET.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}</div>
         </div>
       </div>
       <div className="countdown-nums">
@@ -128,10 +128,15 @@ function TipCard() {
 export default function Dashboard({ navigate }) {
   const [stats, setStats] = useState(null);
   const [relances, setRelances] = useState([]);
+  const [upcomingInterviews, setUpcomingInterviews] = useState([]);
   const [weekCount, setWeekCount] = useState(0);
   const [objectif, setObjectif] = useState(() => Math.max(1, parseInt(localStorage.getItem('objectif_week') || '5')));
   const [editingObjectif, setEditingObjectif] = useState(false);
   const [objectifInput, setObjectifInput] = useState('');
+
+  const userName = localStorage.getItem('user_name') || 'Yakup';
+  const userFormation = localStorage.getItem('user_formation') || 'Mastère Infra & Cloud Xpert';
+  const userTargetDate = localStorage.getItem('user_target_date') || '2026-10-01';
 
   useEffect(() => {
     api.get('/api/stats').then(setStats);
@@ -150,6 +155,16 @@ export default function Dashboard({ navigate }) {
         return d !== null && d >= 0 && d <= daysFromMonday;
       }).length;
       setWeekCount(wc);
+
+      const todayMidnight = new Date(); todayMidnight.setHours(0,0,0,0);
+      const in7 = new Date(todayMidnight); in7.setDate(in7.getDate() + 7);
+      const upcoming = all.filter(c => {
+        if (!c.date_entretien) return false;
+        const parts = c.date_entretien.includes('/') ? c.date_entretien.split('/').reverse() : c.date_entretien.split('-');
+        const d = new Date(parts.join('-')); d.setHours(0,0,0,0);
+        return !isNaN(d) && d >= todayMidnight && d <= in7;
+      }).sort((a,b) => a.date_entretien.localeCompare(b.date_entretien));
+      setUpcomingInterviews(upcoming);
     });
   }, []);
 
@@ -170,13 +185,15 @@ export default function Dashboard({ navigate }) {
   const enAttente = stats.byStatut.filter(s => ['En attente','En attente de réponse'].includes(s.statut)).reduce((a,b) => a + b.count, 0);
 
   return <DashboardInner stats={stats} tauxReponse={tauxReponse} entretiens={entretiens} enAttente={enAttente}
-    relances={relances} weekCount={weekCount} objectif={objectif} editingObjectif={editingObjectif}
-    objectifInput={objectifInput} setObjectifInput={setObjectifInput} setEditingObjectif={setEditingObjectif}
-    saveObjectif={saveObjectif} navigate={navigate} />;
+    relances={relances} upcomingInterviews={upcomingInterviews} weekCount={weekCount} objectif={objectif}
+    editingObjectif={editingObjectif} objectifInput={objectifInput} setObjectifInput={setObjectifInput}
+    setEditingObjectif={setEditingObjectif} saveObjectif={saveObjectif} navigate={navigate}
+    userName={userName} formation={userFormation} targetDate={userTargetDate} />;
 }
 
-function DashboardInner({ stats, tauxReponse, entretiens, enAttente, relances, weekCount, objectif,
-  editingObjectif, objectifInput, setObjectifInput, setEditingObjectif, saveObjectif, navigate }) {
+function DashboardInner({ stats, tauxReponse, entretiens, enAttente, relances, upcomingInterviews, weekCount, objectif,
+  editingObjectif, objectifInput, setObjectifInput, setEditingObjectif, saveObjectif, navigate,
+  userName, formation, targetDate }) {
   const animTotal = useCountUp(stats.total);
   const animTaux = useCountUp(tauxReponse);
   const animEntretiens = useCountUp(entretiens);
@@ -186,8 +203,8 @@ function DashboardInner({ stats, tauxReponse, entretiens, enAttente, relances, w
     <div className="dashboard">
       <div className="dash-header">
         <div>
-          <h1 className="dash-title">Bonjour Yakup 👋</h1>
-          <p className="dash-sub">Mastère Infra &amp; Cloud Xpert — Octobre 2026</p>
+          <h1 className="dash-title">Bonjour {userName} 👋</h1>
+          <p className="dash-sub">{formation} — {new Date(targetDate).toLocaleDateString('fr-FR',{month:'long',year:'numeric'})}</p>
         </div>
         <button className="btn-primary" onClick={() => navigate('candidatures')}>+ Nouvelle candidature</button>
       </div>
@@ -217,7 +234,7 @@ function DashboardInner({ stats, tauxReponse, entretiens, enAttente, relances, w
 
       {/* COUNTDOWN + TIP */}
       <div className="dash-countdown-grid">
-        <CountdownCard />
+        <CountdownCard formation={formation} targetDate={targetDate} />
         <TipCard />
       </div>
 
@@ -275,6 +292,31 @@ function DashboardInner({ stats, tauxReponse, entretiens, enAttente, relances, w
           </div>
         );
       })()}
+
+      {upcomingInterviews.length > 0 && (
+        <div className="interview-alert">
+          <div className="interview-alert-title">🎯 Entretiens à venir — {upcomingInterviews.length} dans les 7 prochains jours</div>
+          <div className="interview-list">
+            {upcomingInterviews.map(c => {
+              const parts = c.date_entretien.includes('/') ? c.date_entretien.split('/').reverse() : c.date_entretien.split('-');
+              const d = new Date(parts.join('-')); d.setHours(0,0,0,0);
+              const today = new Date(); today.setHours(0,0,0,0);
+              const days = Math.ceil((d - today) / 86400000);
+              const label = days === 0 ? "Aujourd'hui !" : days === 1 ? 'Demain' : `Dans ${days} jours`;
+              return (
+                <div className="interview-item" key={c.id} onClick={() => navigate('detail', c.id)}>
+                  <div className="interview-avatar">{c.entreprise[0]}</div>
+                  <div style={{flex:1}}>
+                    <div className="interview-entreprise">{c.entreprise}</div>
+                    <div className="interview-days">{label} · 📅 {c.date_entretien}{c.poste ? ` · ${c.poste}` : ''}</div>
+                  </div>
+                  <span className="interview-arrow">→</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {relances.length > 0 && (
         <div className="relance-banner">

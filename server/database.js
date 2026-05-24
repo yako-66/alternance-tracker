@@ -91,6 +91,7 @@ async function getDb() {
   // Migrations : nouvelles colonnes
   try { db.run('ALTER TABLE candidatures ADD COLUMN priorite INTEGER DEFAULT 0'); save(); } catch(e) {}
   try { db.run('ALTER TABLE candidatures ADD COLUMN score INTEGER DEFAULT 0'); save(); } catch(e) {}
+  try { db.run("ALTER TABLE candidatures ADD COLUMN date_entretien TEXT DEFAULT ''"); save(); } catch(e) {}
 
   // Migration : renseigne localisation pour les entrées existantes qui l'ont vide
   const migrations = [

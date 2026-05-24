@@ -332,6 +332,46 @@
   box-shadow:0 8px 24px rgba(16,185,129,0.4);
 }
 
+/* ── Interview badge ── */
+.detail-interview-badge {
+  display:inline-flex; align-items:center;
+  margin-top:10px; padding:6px 14px; border-radius:var(--radius-full);
+  font-size:0.78rem; font-weight:600; backdrop-filter:blur(8px);
+  animation:fadeInUp 0.3s both;
+}
+
+/* ── Templates panel ── */
+.templates-panel {
+  background:var(--bg); border:1.5px solid var(--border);
+  border-radius:var(--radius-sm); padding:14px;
+  margin-bottom:16px; display:flex; flex-direction:column; gap:10px;
+  animation:fadeInUp 0.25s both;
+}
+
+.templates-label {
+  font-size:0.72rem; font-weight:700; color:var(--muted);
+  text-transform:uppercase; letter-spacing:0.08em;
+}
+
+.templates-list { display:flex; gap:8px; flex-wrap:wrap; }
+
+.btn-template {
+  padding:7px 14px; border-radius:var(--radius-full);
+  font-size:0.78rem; font-weight:500;
+  background:var(--surface); border:1.5px solid var(--border2);
+  color:var(--text2); cursor:pointer; transition:var(--t);
+}
+.btn-template:hover { border-color:var(--purple); color:var(--purple); background:var(--purple-pale); }
+.btn-template.copied { background:var(--green); color:white; border-color:var(--green); }
+
+.btn-templates {
+  padding:7px 14px; border-radius:var(--radius-full);
+  font-size:0.75rem; font-weight:600;
+  background:var(--bg2); border:1.5px solid var(--border2);
+  color:var(--text2); cursor:pointer; transition:var(--t);
+}
+.btn-templates:hover { border-color:var(--purple); color:var(--purple); }
+
 /* ── Dark mode ── */
 [data-theme="dark"] .detail-hero {
   box-shadow:0 12px 40px rgba(124,58,237,0.25);

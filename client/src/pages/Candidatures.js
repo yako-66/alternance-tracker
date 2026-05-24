@@ -82,7 +82,7 @@ const STATUT_COLORS = {
   'Entretien':'#00d4a0','Refus':'#ff6b6b','Sans suite':'#4a4a60'
 };
 
-const empty = { entreprise:'', poste:'', source:'', date_candidature:'', contact:'', statut:'Postulé', notes:'', localisation:'', priorite:0, score:0 };
+const empty = { entreprise:'', poste:'', source:'', date_candidature:'', contact:'', statut:'Postulé', notes:'', localisation:'', priorite:0, score:0, date_entretien:'' };
 
 function daysSince(dateStr) {
   if (!dateStr) return null;
@@ -438,8 +438,12 @@ export default function Candidatures({ navigate }) {
               <input value={form.source} onChange={e => setForm({...form, source:e.target.value})} placeholder="LinkedIn, HelloWork..." />
             </div>
             <div className="form-group">
-              <label>Date</label>
+              <label>Date de candidature</label>
               <input type="date" value={form.date_candidature} onChange={e => setForm({...form, date_candidature:e.target.value})} />
+            </div>
+            <div className="form-group">
+              <label>Date d'entretien</label>
+              <input type="date" value={form.date_entretien||''} onChange={e => setForm({...form, date_entretien:e.target.value})} />
             </div>
             <div className="form-group">
               <label>Contact</label>

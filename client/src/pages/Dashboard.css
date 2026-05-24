@@ -350,7 +350,33 @@
   font-style:italic;
 }
 
+/* ── Interview Alert ── */
+.interview-alert {
+  background:linear-gradient(135deg,#EFF6FF,#DBEAFE);
+  border:1px solid rgba(59,130,246,0.2);
+  border-left:4px solid #3B82F6;
+  border-radius:var(--radius); padding:20px 24px;
+  animation:fadeInUp 0.5s 0.15s both;
+}
+.interview-alert-title { font-size:0.85rem; font-weight:700; color:#1E40AF; margin-bottom:12px; }
+.interview-list { display:flex; flex-direction:column; gap:4px; }
+.interview-item { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:var(--radius-sm); cursor:pointer; transition:background var(--t); }
+.interview-item:hover { background:rgba(59,130,246,0.09); }
+.interview-avatar { width:32px; height:32px; border-radius:8px; background:linear-gradient(135deg,#3B82F6,#7C3AED); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.8rem; color:white; flex-shrink:0; }
+.interview-entreprise { font-size:0.875rem; font-weight:600; color:#1E3A8A; flex:1; }
+.interview-days { font-size:0.75rem; color:#3B82F6; }
+.interview-arrow { color:#60A5FA; }
+
 /* ── Dark mode overrides ── */
+[data-theme="dark"] .interview-alert {
+  background:rgba(59,130,246,0.08);
+  border-color:rgba(59,130,246,0.2);
+  border-left-color:#3B82F6;
+}
+[data-theme="dark"] .interview-alert-title { color:#93C5FD; }
+[data-theme="dark"] .interview-entreprise { color:#BFDBFE; }
+[data-theme="dark"] .interview-days { color:#60A5FA; }
+
 [data-theme="dark"] .relance-banner {
   background: rgba(245,158,11,0.07);
   border-color: rgba(245,158,11,0.18);

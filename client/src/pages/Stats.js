@@ -109,6 +109,18 @@ export default function Stats() {
   const unratedCount = list.filter(c => !c.score || c.score === 0).length;
   const maxScoreDist = Math.max(...scoreDist.map(s => s.count), 1);
 
+  // Temps moyen depuis candidature pour celles ayant reçu une réponse
+  const responded = list.filter(c =>
+    ['Entretien','Refus','Sans suite','En attente de réponse'].includes(c.statut) && c.date_candidature
+  );
+  const avgResponseDays = responded.length > 0
+    ? Math.round(responded.reduce((acc, c) => {
+        const parts = c.date_candidature.includes('/') ? c.date_candidature.split('/').reverse() : c.date_candidature.split('-');
+        const d = new Date(parts.join('-'));
+        return acc + Math.floor((Date.now() - d.getTime()) / 86400000);
+      }, 0) / responded.length)
+    : null;
+
   return (
     <div className="stats-page">
       <h1 className="page-title">Statistiques 📈</h1>
@@ -133,6 +145,11 @@ export default function Stats() {
           <div className="stats-kpi-num" style={{color:'var(--yellow)'}}>{stats.total}</div>
           <div className="stats-kpi-label">Total candidatures</div>
           <div className="stats-kpi-sub">depuis le début</div>
+        </div>
+        <div className="stats-kpi-card">
+          <div className="stats-kpi-num" style={{color:'var(--purple)'}}>{avgResponseDays !== null ? `${avgResponseDays}j` : '—'}</div>
+          <div className="stats-kpi-label">Délai moyen</div>
+          <div className="stats-kpi-sub">depuis la candidature ({responded.length} réponse{responded.length > 1 ? 's' : ''})</div>
         </div>
       </div>
 

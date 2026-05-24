@@ -10,6 +10,21 @@ const STATUT_COLORS = {
 };
 const TYPES_ECHANGE = ['Email reçu','Email envoyé','Appel téléphonique','Message LinkedIn','Entretien','Relance','Note'];
 
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const parts = dateStr.includes('/') ? dateStr.split('/').reverse() : dateStr.split('-');
+  const d = new Date(parts.join('-')); d.setHours(0,0,0,0);
+  if (isNaN(d)) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  return Math.ceil((d - today) / 86400000);
+}
+
+const RELANCE_TEMPLATES = [
+  { title: '📧 Relance standard', body: (e,p) => `Objet : Suivi — ${p} chez ${e}\n\nMadame, Monsieur,\n\nJe me permets de revenir vers vous concernant ma candidature au poste de ${p}.\n\nMon intérêt pour ${e} reste intact. Pourriez-vous me tenir informé(e) de l'avancement de votre processus de recrutement ?\n\nCordialement` },
+  { title: '🎯 Après entretien', body: (e,p) => `Objet : Merci — Entretien ${p} chez ${e}\n\nMadame, Monsieur,\n\nJe vous remercie pour le temps que vous m'avez accordé lors de notre entretien. Cet échange a renforcé mon enthousiasme pour le poste de ${p} chez ${e}.\n\nDans l'attente de votre retour, cordialement` },
+  { title: '🔁 Deuxième relance', body: (e,p) => `Objet : Deuxième suivi — ${p} chez ${e}\n\nMadame, Monsieur,\n\nJe reviens vers vous une deuxième fois concernant le poste de ${p}. Je comprends que vos délais puissent être longs, mais je reste très motivé(e) à rejoindre ${e}.\n\nCordialement` },
+];
+
 function MapEmbed({ localisation }) {
   const [mapUrl, setMapUrl] = useState('');
   const [coords, setCoords] = useState(null);
@@ -94,6 +109,16 @@ export default function Detail({ id, navigate }) {
   const [saving, setSaving] = useState(false);
   const [confetti, setConfetti] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [copiedTemplate, setCopiedTemplate] = useState(-1);
+
+  const copyTemplate = (text, idx) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedTemplate(idx);
+      setTimeout(() => setCopiedTemplate(-1), 2000);
+      showToast('📋 Template copié dans le presse-papier !');
+    }).catch(() => showToast('Copie non supportée dans ce navigateur'));
+  };
 
   const showToast = (msg, type = '') => {
     setToast(msg);
@@ -200,6 +225,18 @@ export default function Detail({ id, navigate }) {
               {cand.date_candidature && <span className="detail-chip">📅 {cand.date_candidature}</span>}
               {cand.contact && <span className="detail-chip">👤 {cand.contact}</span>}
             </div>
+            {cand.date_entretien && (() => {
+              const days = daysUntil(cand.date_entretien);
+              if (days === null) return null;
+              const label = days < 0
+                ? `Entretien passé il y a ${Math.abs(days)} jour${Math.abs(days) > 1 ? 's' : ''}`
+                : days === 0 ? "🎯 Entretien aujourd'hui !"
+                : days === 1 ? '🎯 Entretien demain !'
+                : `🎯 Entretien dans ${days} jours`;
+              const bg = days < 0 ? 'rgba(150,150,180,0.15)' : days <= 1 ? 'rgba(239,68,68,0.18)' : days <= 3 ? 'rgba(245,158,11,0.18)' : 'rgba(0,212,160,0.18)';
+              const col = days < 0 ? 'rgba(255,255,255,0.6)' : days <= 1 ? '#fca5a5' : days <= 3 ? '#fcd34d' : '#6ee7b7';
+              return <div className="detail-interview-badge" style={{background:bg,color:col}}>{label} · {cand.date_entretien}</div>;
+            })()}
           </div>
         </div>
         <div className="detail-hero-right">
@@ -247,6 +284,10 @@ export default function Detail({ id, navigate }) {
                 <input type="date" value={form.date_candidature||''} onChange={e => setForm({...form,date_candidature:e.target.value})} />
               </div>
               <div className="form-group">
+                <label>Date d'entretien</label>
+                <input type="date" value={form.date_entretien||''} onChange={e => setForm({...form,date_entretien:e.target.value})} />
+              </div>
+              <div className="form-group">
                 <label>Statut</label>
                 <select value={form.statut} onChange={e => setForm({...form,statut:e.target.value})}>
                   {STATUTS.map(s => <option key={s} value={s}>{s}</option>)}
@@ -268,6 +309,7 @@ export default function Detail({ id, navigate }) {
                 ['💼 Poste', cand.poste],
                 ['🔗 Source', cand.source],
                 ['📅 Date candidature', cand.date_candidature],
+                ['🎯 Date entretien', cand.date_entretien],
                 ['👤 Contact', cand.contact],
               ].map(([label, val]) => val ? (
                 <div className="info-row" key={label}>
@@ -295,10 +337,32 @@ export default function Detail({ id, navigate }) {
         <div className="card">
           <div className="card-title-row">
             <h2 className="card-title">💬 Historique ({echanges.length})</h2>
-            <button className="btn-add-echange" onClick={() => setShowEchangeForm(!showEchangeForm)}>
-              {showEchangeForm ? '✕' : '+ Ajouter'}
-            </button>
+            <div style={{display:'flex',gap:6}}>
+              <button className="btn-templates" onClick={() => setShowTemplates(!showTemplates)}>
+                {showTemplates ? '✕ Templates' : '📋 Templates'}
+              </button>
+              <button className="btn-add-echange" onClick={() => setShowEchangeForm(!showEchangeForm)}>
+                {showEchangeForm ? '✕' : '+ Ajouter'}
+              </button>
+            </div>
           </div>
+
+          {showTemplates && (
+            <div className="templates-panel">
+              <div className="templates-label">Copier un email type :</div>
+              <div className="templates-list">
+                {RELANCE_TEMPLATES.map((t, idx) => (
+                  <button
+                    key={idx}
+                    className={`btn-template ${copiedTemplate === idx ? 'copied' : ''}`}
+                    onClick={() => copyTemplate(t.body(cand.entreprise, cand.poste || 'le poste'), idx)}
+                  >
+                    {copiedTemplate === idx ? '✓ Copié !' : t.title}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {showEchangeForm && (
             <div className="echange-form">
