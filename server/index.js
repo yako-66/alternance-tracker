@@ -102,9 +102,10 @@ app.post('/api/register', async (req, res) => {
   if (!password || password.length < 6) return res.status(400).json({ error: 'Mot de passe trop court (6 caractères min)' });
   const existing = query('SELECT id FROM users WHERE email=?', [email.toLowerCase().trim()]);
   if (existing.length) return res.status(409).json({ error: 'Cet email est déjà utilisé' });
-  const result = run('INSERT INTO users (email,password_hash) VALUES (?,?)',
+  run('INSERT INTO users (email,password_hash) VALUES (?,?)',
     [email.toLowerCase().trim(), hashPassword(password)]);
-  const token = signJWT({ userId: result.lastInsertRowid, email: email.toLowerCase().trim() });
+  const newUser = query('SELECT id FROM users WHERE email=?', [email.toLowerCase().trim()])[0];
+  const token = signJWT({ userId: newUser.id, email: email.toLowerCase().trim() });
   res.json({ token, email: email.toLowerCase().trim() });
 });
 
