@@ -10,7 +10,6 @@ import GlobalTimeline from './pages/GlobalTimeline';
 import Comparateur from './pages/Comparateur';
 import PrepEntretien from './pages/PrepEntretien';
 import Wrapped from './pages/Wrapped';
-import Auth from './pages/Auth';
 import { api } from './hooks/api';
 import './App.css';
 
@@ -311,26 +310,6 @@ function CoachIA({ onClose, candidatures }) {
 }
 
 export default function App() {
-  const [userEmail, setUserEmail] = useState(() => localStorage.getItem('user_email'));
-
-  useEffect(() => {
-    const handler = () => setUserEmail(null);
-    window.addEventListener('auth:logout', handler);
-    return () => window.removeEventListener('auth:logout', handler);
-  }, []);
-
-  if (!localStorage.getItem('token') || !userEmail) {
-    return <Auth onAuth={(email) => setUserEmail(email)} />;
-  }
-
-  return <AppInner key={userEmail} userEmail={userEmail} onLogout={() => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user_email');
-    setUserEmail(null);
-  }} />;
-}
-
-function AppInner({ userEmail, onLogout }) {
   const [page, setPage] = useState('dashboard');
   const [selectedId, setSelectedId] = useState(null);
   const [darkMode, setDarkMode] = useState(() => {
@@ -467,8 +446,6 @@ function AppInner({ userEmail, onLogout }) {
           <button className="settings-btn" onClick={() => navigate('settings')} title="Paramètres">
             ⚙️
           </button>
-          <span className="nav-email" title={userEmail}>{userEmail?.split('@')[0]}</span>
-          <button className="nav-logout" onClick={onLogout} title="Se déconnecter">⏏</button>
         </div>
       </nav>
 

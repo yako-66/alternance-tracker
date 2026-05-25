@@ -6,52 +6,14 @@ const { getDb, query, run, save } = require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../client/build')));
 
-// ── Auth helpers ──
-function signJWT(payload) {
-  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
-  const exp = Math.floor(Date.now() / 1000) + 30 * 24 * 3600;
-  const body = Buffer.from(JSON.stringify({ ...payload, exp })).toString('base64url');
-  const sig = crypto.createHmac('sha256', JWT_SECRET).update(`${header}.${body}`).digest('base64url');
-  return `${header}.${body}.${sig}`;
-}
-
-function verifyJWT(token) {
-  try {
-    const [header, body, sig] = token.split('.');
-    const expected = crypto.createHmac('sha256', JWT_SECRET).update(`${header}.${body}`).digest('base64url');
-    if (sig !== expected) return null;
-    const payload = JSON.parse(Buffer.from(body, 'base64url').toString());
-    if (payload.exp < Date.now() / 1000) return null;
-    return payload;
-  } catch { return null; }
-}
-
-function hashPassword(password) {
-  const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
-  return `${salt}:${hash}`;
-}
-
-function verifyPassword(password, stored) {
-  try {
-    const [salt, hash] = stored.split(':');
-    const computed = crypto.scryptSync(password, salt, 64).toString('hex');
-    return crypto.timingSafeEqual(Buffer.from(computed, 'hex'), Buffer.from(hash, 'hex'));
-  } catch { return false; }
-}
-
+// App mono-utilisateur — toutes les requêtes utilisent user_id=1
 function auth(req, res, next) {
-  const header = req.headers.authorization;
-  if (!header?.startsWith('Bearer ')) return res.status(401).json({ error: 'Non authentifié' });
-  const payload = verifyJWT(header.slice(7));
-  if (!payload) return res.status(401).json({ error: 'Session expirée, reconnecte-toi' });
-  req.user = payload;
+  req.user = { userId: 1 };
   next();
 }
 
@@ -95,36 +57,8 @@ app.get('/api/public/:token', async (req, res) => {
   res.json({ candidatures });
 });
 
-app.post('/api/register', async (req, res) => {
-  await getDb();
-  const { email, password } = req.body;
-  if (!email || !email.includes('@')) return res.status(400).json({ error: 'Email invalide' });
-  if (!password || password.length < 6) return res.status(400).json({ error: 'Mot de passe trop court (6 caractères min)' });
-  const existing = query('SELECT id FROM users WHERE email=?', [email.toLowerCase().trim()]);
-  if (existing.length) return res.status(409).json({ error: 'Cet email est déjà utilisé' });
-  run('INSERT INTO users (email,password_hash) VALUES (?,?)',
-    [email.toLowerCase().trim(), hashPassword(password)]);
-  const newUser = query('SELECT id FROM users WHERE email=?', [email.toLowerCase().trim()])[0];
-  const token = signJWT({ userId: newUser.id, email: email.toLowerCase().trim() });
-  res.json({ token, email: email.toLowerCase().trim() });
-});
-
-app.post('/api/login', async (req, res) => {
-  await getDb();
-  const { email, password } = req.body;
-  const user = query('SELECT * FROM users WHERE email=?', [email?.toLowerCase().trim()])[0];
-  if (!user || !verifyPassword(password, user.password_hash))
-    return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
-  const token = signJWT({ userId: user.id, email: user.email });
-  res.json({ token, email: user.email });
-});
-
-// ── Routes protégées (JWT requis) ──
+// ── Init DB ──
 app.use(async (req, res, next) => { await getDb(); next(); });
-
-app.get('/api/me', auth, (req, res) => {
-  res.json({ userId: req.user.userId, email: req.user.email });
-});
 
 app.get('/api/candidatures', auth, (req, res) => {
   res.json(query('SELECT * FROM candidatures WHERE user_id=? ORDER BY id DESC', [req.user.userId]));
