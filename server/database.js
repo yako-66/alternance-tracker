@@ -158,8 +158,10 @@ function run(sql, params = []) {
     return `'${String(val).replace(/'/g, "''")}'`;
   });
   db.run(escaped);
+  // Lire le rowid AVANT save() — db.export() remet last_insert_rowid à 0
+  const lastInsertRowid = db.exec('SELECT last_insert_rowid()')[0]?.values[0][0];
   save();
-  return { lastInsertRowid: db.exec('SELECT last_insert_rowid()')[0]?.values[0][0] };
+  return { lastInsertRowid };
 }
 
 module.exports = { getDb, query, run, save };
