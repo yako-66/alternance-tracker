@@ -57,8 +57,7 @@ app.get('/api/public/:token', async (req, res) => {
   res.json({ candidatures });
 });
 
-// ── Init DB ──
-app.use(async (req, res, next) => { await getDb(); next(); });
+// (DB initialisée au démarrage dans getDb() + listen)
 
 app.get('/api/candidatures', auth, (req, res) => {
   res.json(query('SELECT * FROM candidatures WHERE user_id=? ORDER BY id DESC', [req.user.userId]));
@@ -288,4 +287,21 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../client/build/index.html'));
 });
 
-app.listen(PORT, () => console.log(`🚀 Serveur sur http://localhost:${PORT}`));
+// Initialise la DB au démarrage (pas à la 1ère requête) pour éviter le délai cold-start
+getDb().then(() => {
+  app.listen(PORT, () => {
+    console.log(`🚀 Serveur sur http://localhost:${PORT}`);
+
+    // Auto-ping toutes les 10 min pour empêcher Render free tier de s'endormir
+    const selfUrl = process.env.RENDER_EXTERNAL_URL;
+    if (selfUrl) {
+      setInterval(() => {
+        fetch(`${selfUrl}/api/ping`).catch(() => {});
+      }, 10 * 60 * 1000);
+      console.log(`🏓 Keep-alive activé → ${selfUrl}/api/ping`);
+    }
+  });
+}).catch(err => {
+  console.error('❌ Erreur initialisation DB:', err);
+  process.exit(1);
+});

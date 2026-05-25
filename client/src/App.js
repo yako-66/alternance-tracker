@@ -309,9 +309,40 @@ function CoachIA({ onClose, candidatures }) {
   );
 }
 
+function WakeupScreen({ status, elapsed }) {
+  const messages = [
+    { at: 0,  text: 'Connexion au serveur…' },
+    { at: 5,  text: 'Le serveur se réveille, encore quelques secondes…' },
+    { at: 20, text: 'Presque prêt ! Render démarre la base de données…' },
+    { at: 45, text: 'Ça prend un peu plus de temps que prévu, patience…' },
+  ];
+  const msg = [...messages].reverse().find(m => elapsed >= m.at)?.text || messages[0].text;
+  const pct = Math.min((elapsed / 60) * 100, 95);
+
+  return (
+    <div className="wakeup-screen">
+      <div className="wakeup-box">
+        <div className="wakeup-logo">⚡</div>
+        <div className="wakeup-title">AlternanceTracker</div>
+        <div className="wakeup-msg">{msg}</div>
+        <div className="wakeup-bar-track">
+          <div className="wakeup-bar-fill" style={{ width: `${pct}%` }} />
+        </div>
+        <div className="wakeup-hint">
+          {elapsed < 5
+            ? 'Chargement…'
+            : `${Math.round(elapsed)}s — Le serveur Render (gratuit) se remet en route`}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [page, setPage] = useState('dashboard');
   const [selectedId, setSelectedId] = useState(null);
+  const [serverReady, setServerReady] = useState(false);
+  const [serverElapsed, setServerElapsed] = useState(0);
   const [darkMode, setDarkMode] = useState(() => {
     const stored = localStorage.getItem('theme');
     if (stored) return stored === 'dark';
@@ -322,6 +353,47 @@ export default function App() {
   const [showPomodoro, setShowPomodoro] = useState(false);
   const [showCoach, setShowCoach] = useState(false);
   const [candidatures, setCandidatures] = useState([]);
+
+  // Ping serveur au démarrage — affiche l'écran de démarrage si Render dort
+  useEffect(() => {
+    const startedAt = Date.now();
+    let cancelled = false;
+    let timer;
+
+    const tick = () => {
+      if (!cancelled) setServerElapsed(Math.round((Date.now() - startedAt) / 1000));
+    };
+    const tickInterval = setInterval(tick, 1000);
+
+    const tryPing = async () => {
+      while (!cancelled) {
+        try {
+          const ctrl = new AbortController();
+          const timeout = setTimeout(() => ctrl.abort(), 5000);
+          await fetch('/api/ping', { signal: ctrl.signal });
+          clearTimeout(timeout);
+          if (!cancelled) setServerReady(true);
+          break;
+        } catch {
+          await new Promise(r => { timer = setTimeout(r, 3000); });
+        }
+      }
+    };
+
+    tryPing();
+    return () => {
+      cancelled = true;
+      clearInterval(tickInterval);
+      clearTimeout(timer);
+    };
+  }, []);
+
+  // Keepalive client : ping toutes les 14 min pour garder Render éveillé
+  useEffect(() => {
+    if (!serverReady) return;
+    const id = setInterval(() => fetch('/api/ping').catch(() => {}), 14 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [serverReady]);
 
   // Sync theme to DOM + localStorage
   useEffect(() => {
@@ -398,6 +470,8 @@ export default function App() {
     setDarkMode(d => { localStorage.setItem('theme_manual', '1'); return !d; });
   };
 
+  const [showMore, setShowMore] = useState(false);
+
   const NAV = [
     { id:'dashboard',    label:'Dashboard',    icon:'📊' },
     { id:'candidatures', label:'Candidatures', icon:'📋' },
@@ -410,10 +484,21 @@ export default function App() {
     { id:'wrapped',      label:'Wrapped',      icon:'🎁' },
   ];
 
+  const NAV_MOBILE_PRIMARY = ['dashboard', 'candidatures', 'stats'];
+  const NAV_MOBILE_SECONDARY = ['carte', 'calendrier', 'timeline', 'comparateur', 'prep', 'wrapped'];
+
   const isActive = (id) => {
     if (id === 'candidatures') return page === 'candidatures' || page === 'detail';
     return page === id;
   };
+
+  const closeMore = () => setShowMore(false);
+
+  const moreNavigate = (id) => { navigate(id); closeMore(); };
+
+  if (!serverReady && serverElapsed >= 3) {
+    return <WakeupScreen status="waking" elapsed={serverElapsed} />;
+  }
 
   return (
     <div className="app">
@@ -421,6 +506,46 @@ export default function App() {
       {showNotes && <QuickNotes onClose={() => setShowNotes(false)} />}
       {showPomodoro && <Pomodoro onClose={() => setShowPomodoro(false)} />}
       {showCoach && <CoachIA onClose={() => setShowCoach(false)} candidatures={candidatures} />}
+
+      {/* Menu "Plus" mobile */}
+      {showMore && (
+        <div className="more-overlay" onClick={closeMore}>
+          <div className="more-sheet" onClick={e => e.stopPropagation()}>
+            <div className="more-handle" />
+            <div className="more-section-label">Pages</div>
+            <div className="more-grid">
+              {NAV_MOBILE_SECONDARY.map(id => {
+                const n = NAV.find(x => x.id === id);
+                return (
+                  <button key={id} className={`more-item ${isActive(id) ? 'active' : ''}`} onClick={() => moreNavigate(id)}>
+                    <span className="more-item-icon">{n.icon}</span>
+                    <span className="more-item-label">{n.label}</span>
+                  </button>
+                );
+              })}
+              <button className={`more-item ${page === 'settings' ? 'active' : ''}`} onClick={() => moreNavigate('settings')}>
+                <span className="more-item-icon">⚙️</span>
+                <span className="more-item-label">Paramètres</span>
+              </button>
+            </div>
+            <div className="more-section-label">Outils</div>
+            <div className="more-grid">
+              <button className={`more-item ${showPomodoro ? 'active' : ''}`} onClick={() => { setShowPomodoro(s => !s); setShowNotes(false); setShowCoach(false); closeMore(); }}>
+                <span className="more-item-icon">⏱️</span>
+                <span className="more-item-label">Pomodoro</span>
+              </button>
+              <button className={`more-item ${showNotes ? 'active' : ''}`} onClick={() => { setShowNotes(s => !s); setShowPomodoro(false); setShowCoach(false); closeMore(); }}>
+                <span className="more-item-icon">📝</span>
+                <span className="more-item-label">Notes</span>
+              </button>
+              <button className={`more-item ${showCoach ? 'active' : ''}`} onClick={() => { setShowCoach(s => !s); setShowNotes(false); setShowPomodoro(false); closeMore(); }}>
+                <span className="more-item-icon">🤖</span>
+                <span className="more-item-label">Coach IA</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <nav className="navbar">
         <div className="nav-brand" onClick={() => navigate('dashboard')}>
@@ -463,26 +588,26 @@ export default function App() {
         {page === 'wrapped'      && <Wrapped navigate={navigate} />}
       </main>
 
+      {/* Barre de navigation mobile — 5 onglets fixes */}
       <nav className="bottom-nav">
-        {NAV.map(n => (
-          <button
-            key={n.id}
-            className={`bottom-nav-btn ${isActive(n.id) ? 'active' : ''}`}
-            onClick={() => navigate(n.id)}
-          >
-            <span>{n.icon}</span>
-            <span>{n.label}</span>
-          </button>
-        ))}
+        {NAV_MOBILE_PRIMARY.map(id => {
+          const n = NAV.find(x => x.id === id);
+          return (
+            <button key={id} className={`bottom-nav-btn ${isActive(id) ? 'active' : ''}`} onClick={() => navigate(id)}>
+              <span>{n.icon}</span>
+              <span>{n.label}</span>
+            </button>
+          );
+        })}
         <button className="bottom-nav-btn" onClick={() => setShowSearch(true)}>
           <span>🔍</span><span>Chercher</span>
         </button>
-        <button className="bottom-nav-btn" onClick={() => navigate('settings')}>
-          <span>⚙️</span><span>Paramètres</span>
+        <button className={`bottom-nav-btn ${showMore ? 'active' : ''}`} onClick={() => setShowMore(s => !s)}>
+          <span>☰</span><span>Plus</span>
         </button>
       </nav>
 
-      {/* FABs */}
+      {/* FABs — masqués sur mobile, accessibles via le menu Plus */}
       <div className="fab-group">
         <button className={`qnotes-fab fab-pomodoro ${showPomodoro ? 'qnotes-fab-active' : ''}`} onClick={() => { setShowPomodoro(s => !s); setShowNotes(false); setShowCoach(false); }} title="Pomodoro">⏱️</button>
         <button className={`qnotes-fab ${showNotes ? 'qnotes-fab-active' : ''}`} onClick={() => { setShowNotes(s => !s); setShowPomodoro(false); setShowCoach(false); }} title="Notes rapides">📝</button>

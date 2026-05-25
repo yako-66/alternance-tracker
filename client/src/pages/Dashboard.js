@@ -241,8 +241,8 @@ function calcStreak(list) {
 }
 
 export default function Dashboard({ navigate }) {
-  const [stats, setStats] = useState(null);
-  const [allList, setAllList] = useState([]);
+  const [stats, setStats] = useState(() => api.getCached('/api/stats'));
+  const [allList, setAllList] = useState(() => api.getCached('/api/candidatures') || []);
   const [relances, setRelances] = useState([]);
   const [upcomingInterviews, setUpcomingInterviews] = useState([]);
   const [weekCount, setWeekCount] = useState(0);
