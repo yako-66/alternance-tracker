@@ -1,4 +1,4 @@
-const CACHE = 'alternance-v1';
+const CACHE = 'alternance-v3';
 const SHELL = ['/', '/index.html'];
 
 self.addEventListener('install', e => {

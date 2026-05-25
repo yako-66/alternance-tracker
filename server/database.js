@@ -1,35 +1,38 @@
-const initSqlJs = require('sql.js');
-const fs = require('fs');
-const path = require('path');
+const { createClient } = require('@libsql/client');
 
-const dbPath = process.env.DB_PATH || path.join(__dirname, 'tracker.db');
-
-let db;
+const client = createClient({
+  url: process.env.TURSO_DATABASE_URL || 'file:./server/tracker.db',
+  authToken: process.env.TURSO_AUTH_TOKEN || undefined,
+});
 
 async function getDb() {
-  if (db) return db;
-  const SQL = await initSqlJs();
-  if (fs.existsSync(dbPath)) {
-    const fileBuffer = fs.readFileSync(dbPath);
-    db = new SQL.Database(fileBuffer);
-  } else {
-    db = new SQL.Database();
-  }
-
-  db.run(`
+  await client.execute(`
     CREATE TABLE IF NOT EXISTS candidatures (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER DEFAULT 1,
       entreprise TEXT NOT NULL,
-      poste TEXT,
-      source TEXT,
-      date_candidature TEXT,
-      contact TEXT,
+      poste TEXT DEFAULT '',
+      source TEXT DEFAULT '',
+      date_candidature TEXT DEFAULT '',
+      contact TEXT DEFAULT '',
       statut TEXT DEFAULT 'Postulé',
-      notes TEXT,
-    localisation TEXT DEFAULT '',
+      notes TEXT DEFAULT '',
+      localisation TEXT DEFAULT '',
+      priorite INTEGER DEFAULT 0,
+      score INTEGER DEFAULT 0,
+      date_entretien TEXT DEFAULT '',
+      archived INTEGER DEFAULT 0,
+      tags TEXT DEFAULT '',
+      salaire TEXT DEFAULT '',
+      secteur TEXT DEFAULT '',
+      taille TEXT DEFAULT '',
+      date_rappel TEXT DEFAULT '',
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
+    )
+  `);
+
+  await client.execute(`
     CREATE TABLE IF NOT EXISTS echanges (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       candidature_id INTEGER,
@@ -37,13 +40,31 @@ async function getDb() {
       contenu TEXT,
       date TEXT,
       FOREIGN KEY(candidature_id) REFERENCES candidatures(id)
-    );
+    )
   `);
 
-  // Seed si vide
-  const count = db.exec('SELECT COUNT(*) as c FROM candidatures')[0]?.values[0][0] || 0;
-  if (count === 0) {
-    // [entreprise, poste, source, date, contact, statut, notes, localisation]
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS shares (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      token TEXT UNIQUE NOT NULL,
+      created_at TEXT,
+      user_id INTEGER DEFAULT 1
+    )
+  `);
+
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS waitlist (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT,
+      email TEXT UNIQUE NOT NULL,
+      profile TEXT,
+      created_at TEXT
+    )
+  `);
+
+  // Seed initial si DB vide
+  const r = await client.execute('SELECT COUNT(*) as c FROM candidatures');
+  if (Number(r.rows[0].c) === 0) {
     const companies = [
       ['SNCF','Alternant Infra/Cloud','Candidature directe','','','Postulé','','Lyon'],
       ['XEFI','Alternant Systèmes & Réseaux','Candidature directe','','','Postulé','','Lyon'],
@@ -82,86 +103,26 @@ async function getDb() {
       ['ACTEMIUM / VINCI','Alternant Administrateur IT','HelloWork','20/05/2026','','Postulé','Oullins (69) — VINCI Energies','Oullins'],
       ['OPUS RS','Technicien Sys & Réseaux','LinkedIn (InMail)','20/05/2026','Yorick Georges','En attente de réponse','À confirmer : alternance ou CDI ?','Lyon'],
     ];
-    companies.forEach(c => {
-      db.run(`INSERT INTO candidatures (entreprise,poste,source,date_candidature,contact,statut,notes,localisation) VALUES (?,?,?,?,?,?,?,?)`, c);
-    });
-    save();
+    for (const c of companies) {
+      await client.execute({
+        sql: 'INSERT INTO candidatures (entreprise,poste,source,date_candidature,contact,statut,notes,localisation) VALUES (?,?,?,?,?,?,?,?)',
+        args: c,
+      });
+    }
+    console.log(`✅ ${companies.length} candidatures de démo insérées`);
   }
 
-  // Migrations : nouvelles colonnes
-  try { db.run('ALTER TABLE candidatures ADD COLUMN priorite INTEGER DEFAULT 0'); save(); } catch(e) {}
-  try { db.run('ALTER TABLE candidatures ADD COLUMN score INTEGER DEFAULT 0'); save(); } catch(e) {}
-  try { db.run("ALTER TABLE candidatures ADD COLUMN date_entretien TEXT DEFAULT ''"); save(); } catch(e) {}
-  try { db.run('ALTER TABLE candidatures ADD COLUMN archived INTEGER DEFAULT 0'); save(); } catch(e) {}
-  try { db.run("ALTER TABLE candidatures ADD COLUMN tags TEXT DEFAULT ''"); save(); } catch(e) {}
-  try { db.run("ALTER TABLE candidatures ADD COLUMN salaire TEXT DEFAULT ''"); save(); } catch(e) {}
-  try { db.run("ALTER TABLE candidatures ADD COLUMN secteur TEXT DEFAULT ''"); save(); } catch(e) {}
-  try { db.run("ALTER TABLE candidatures ADD COLUMN taille TEXT DEFAULT ''"); save(); } catch(e) {}
-  try { db.run("ALTER TABLE candidatures ADD COLUMN date_rappel TEXT DEFAULT ''"); save(); } catch(e) {}
-  try { db.run(`CREATE TABLE IF NOT EXISTS shares (id INTEGER PRIMARY KEY AUTOINCREMENT, token TEXT UNIQUE NOT NULL, created_at TEXT)`); save(); } catch(e) {}
-  try { db.run(`CREATE TABLE IF NOT EXISTS waitlist (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT UNIQUE NOT NULL, profile TEXT, created_at TEXT)`); save(); } catch(e) {}
-  try { db.run(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP)`); save(); } catch(e) {}
-  try { db.run('ALTER TABLE candidatures ADD COLUMN user_id INTEGER DEFAULT 1'); save(); } catch(e) {}
-  try { db.run('ALTER TABLE shares ADD COLUMN user_id INTEGER DEFAULT 1'); save(); } catch(e) {}
-
-  // Migration : renseigne localisation pour les entrées existantes qui l'ont vide
-  const migrations = [
-    ['SNCF','Lyon'],['XEFI','Lyon'],['APTIS','Lyon'],['SODIAAL','Lyon'],
-    ['APRIL','Lyon'],['ENEDIS','Lyon'],['Groupe APICIL','Lyon'],['FRAMATOME','Lyon'],
-    ['Early Makers','Lyon'],['Banque Populaire','Lyon'],['Crédit Agricole','Lyon'],
-    ['EDF','Lyon'],['ORT Lyon','Lyon'],['SFR','Lyon'],['CAPGEMINI','Lyon'],
-    ['STEF','Lyon'],['CERFRANCE','Lyon'],['FIDUCIAL','Lyon'],['LYNX','Lyon'],
-    ['METSYS','Lyon'],['GAC Software','Lyon'],['GUARANI','Lyon'],
-    ['Genius Talent','Lyon'],['SAYCO','Lyon'],['Réseau Talents','Lyon'],
-    ['SILKHOM','Lyon'],['IKIGAI','Lyon'],['AQUISIT','Lyon'],['XBHOST','Lyon'],
-    ['SKILLIE','Lyon'],['DIMEO ENERGIE','Lyon'],['ALPTIS','Rillieux-la-Pape'],
-    ['CLUB MED','Paris'],['EDILIANS','Quincieux'],['ACTEMIUM / VINCI','Oullins'],
-    ['OPUS RS','Lyon'],
-  ];
-  let migrated = 0;
-  migrations.forEach(([entreprise, loc]) => {
-    const res = db.exec(`SELECT id FROM candidatures WHERE entreprise='${entreprise.replace(/'/g,"''")}' AND (localisation IS NULL OR localisation='')`);
-    if (res[0]?.values?.length) {
-      db.run(`UPDATE candidatures SET localisation='${loc}' WHERE entreprise='${entreprise.replace(/'/g,"''")}'  AND (localisation IS NULL OR localisation='')`);
-      migrated++;
-    }
-  });
-  if (migrated > 0) save();
-
-  return db;
+  return client;
 }
 
-function save() {
-  if (!db) return;
-  const data = db.export();
-  fs.writeFileSync(dbPath, Buffer.from(data));
+async function query(sql, params = []) {
+  const result = await client.execute({ sql, args: params });
+  return result.rows.map(row => ({ ...row }));
 }
 
-// Helper: exécute une requête et retourne les rows
-function query(sql, params = []) {
-  const result = db.exec(sql.replace(/\?/g, () => {
-    const val = params.shift();
-    if (val === null || val === undefined) return 'NULL';
-    if (typeof val === 'number') return val;
-    return `'${String(val).replace(/'/g, "''")}'`;
-  }));
-  if (!result[0]) return [];
-  const { columns, values } = result[0];
-  return values.map(row => Object.fromEntries(columns.map((c, i) => [c, row[i]])));
+async function run(sql, params = []) {
+  const result = await client.execute({ sql, args: params });
+  return { lastInsertRowid: Number(result.lastInsertRowid) };
 }
 
-function run(sql, params = []) {
-  const escaped = sql.replace(/\?/g, () => {
-    const val = params.shift();
-    if (val === null || val === undefined) return 'NULL';
-    if (typeof val === 'number') return val;
-    return `'${String(val).replace(/'/g, "''")}'`;
-  });
-  db.run(escaped);
-  // Lire le rowid AVANT save() — db.export() remet last_insert_rowid à 0
-  const lastInsertRowid = db.exec('SELECT last_insert_rowid()')[0]?.values[0][0];
-  save();
-  return { lastInsertRowid };
-}
-
-module.exports = { getDb, query, run, save };
+module.exports = { getDb, query, run };
