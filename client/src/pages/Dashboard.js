@@ -252,7 +252,8 @@ export default function Dashboard({ navigate }) {
   const [objectifInput, setObjectifInput] = useState('');
   const { newAchievement } = useAchievements(allList);
 
-  const userName = localStorage.getItem('user_name') || 'Yakup';
+  const userEmail = localStorage.getItem('user_email') || '';
+  const userName = localStorage.getItem('user_name') || userEmail.split('@')[0] || 'toi';
   const userFormation = localStorage.getItem('user_formation') || 'Mastère Infra & Cloud Xpert';
   const userTargetDate = localStorage.getItem('user_target_date') || '2026-10-01';
 

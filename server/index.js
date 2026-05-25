@@ -165,20 +165,28 @@ app.delete('/api/candidatures/:id', auth, (req, res) => {
 
 app.get('/api/candidatures/:id/echanges', auth, (req, res) => {
   const cid = parseInt(req.params.id);
+  const owned = query('SELECT id FROM candidatures WHERE id=? AND user_id=?', [cid, req.user.userId])[0];
+  if (!owned) return res.status(403).json({ error: 'Accès refusé' });
   res.json(query('SELECT * FROM echanges WHERE candidature_id=? ORDER BY id DESC', [cid]));
 });
 
 app.post('/api/candidatures/:id/echanges', auth, (req, res) => {
+  const cid = parseInt(req.params.id);
+  const owned = query('SELECT id FROM candidatures WHERE id=? AND user_id=?', [cid, req.user.userId])[0];
+  if (!owned) return res.status(403).json({ error: 'Accès refusé' });
   const { type, contenu, date } = req.body;
   const result = run(
     'INSERT INTO echanges (candidature_id,type,contenu,date) VALUES (?,?,?,?)',
-    [parseInt(req.params.id), type, contenu, date||new Date().toISOString().split('T')[0]]
+    [cid, type, contenu, date||new Date().toISOString().split('T')[0]]
   );
   res.json(query('SELECT * FROM echanges WHERE id=?', [result.lastInsertRowid])[0]);
 });
 
 app.delete('/api/echanges/:id', auth, (req, res) => {
-  run('DELETE FROM echanges WHERE id=?', [parseInt(req.params.id)]);
+  const eid = parseInt(req.params.id);
+  const echange = query('SELECT e.id FROM echanges e JOIN candidatures c ON c.id=e.candidature_id WHERE e.id=? AND c.user_id=?', [eid, req.user.userId])[0];
+  if (!echange) return res.status(403).json({ error: 'Accès refusé' });
+  run('DELETE FROM echanges WHERE id=?', [eid]);
   res.json({ success: true });
 });
 
