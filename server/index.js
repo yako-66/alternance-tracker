@@ -206,11 +206,23 @@ app.get('/api/debug/ft', async (req, res) => {
   if (!id) return res.json({ error: 'Clés FT absentes' });
 
   try {
-    // 1. Auth
-    const body = new URLSearchParams({ grant_type:'client_credentials', client_id:id, client_secret:secret, scope:'api_offresdemploiv2 o2dsoffre' });
-    const auth = await fetch('https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=/partenaire', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:body.toString() });
-    const authData = await auth.json();
-    if (!auth.ok) return res.json({ step:'auth', status:auth.status, error: authData });
+    // 1. Auth — essaie les deux endpoints connus
+    const scopes = ['api_offresdemploiv2 o2dsoffre', 'api_offresdemploiv2'];
+    const authUrls = [
+      'https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=/partenaire',
+      'https://id.francetravail.io/connexion/oauth2/access_token?realm=/partenaire',
+    ];
+    let token, authData, authOk = false;
+    for (const scope of scopes) {
+      for (const authUrl of authUrls) {
+        const body2 = new URLSearchParams({ grant_type:'client_credentials', client_id:id, client_secret:secret, scope });
+        const auth2 = await fetch(authUrl, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:body2.toString() });
+        authData = await auth2.json();
+        if (auth2.ok && authData.access_token) { token = authData.access_token; authOk = true; break; }
+      }
+      if (authOk) break;
+    }
+    if (!authOk) return res.json({ step:'auth', error: authData });
 
     const token = authData.access_token;
 
