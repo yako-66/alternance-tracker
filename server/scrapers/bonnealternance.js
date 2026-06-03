@@ -1,4 +1,5 @@
-// API publique La Bonne Alternance — pas d'auth requise
+// La Bonne Alternance — API v3 (beta.gouv.fr)
+// Endpoint stable depuis 2024 : /api/v3/jobs/search
 const ROMES = 'M1801,M1802,M1803,M1805,I1401';
 
 const LOCATIONS = [
@@ -7,74 +8,72 @@ const LOCATIONS = [
 ];
 
 async function scrapeLocation({ lat, lon, name }) {
-  const url = new URL('https://labonnealternance.apprentissage.beta.gouv.fr/api/v1/jobs/jobs');
-  url.searchParams.set('romes', ROMES);
-  url.searchParams.set('latitude', String(lat));
-  url.searchParams.set('longitude', String(lon));
-  url.searchParams.set('radius', '30');
-  url.searchParams.set('caller', 'alternance-aggregator');
+  // Essaie plusieurs variantes de l'endpoint
+  const endpoints = [
+    `https://labonnealternance.apprentissage.beta.gouv.fr/api/v3/jobs/search?romes=${ROMES}&latitude=${lat}&longitude=${lon}&radius=30&caller=alternance-aggregator`,
+    `https://labonnealternance.apprentissage.beta.gouv.fr/api/v2/jobs/search?romes=${ROMES}&latitude=${lat}&longitude=${lon}&radius=30&caller=alternance-aggregator`,
+    `https://labonnealternance.apprentissage.beta.gouv.fr/api/v1/jobs/jobs?romes=${ROMES}&latitude=${lat}&longitude=${lon}&radius=30&caller=alternance-aggregator`,
+  ];
 
-  const ctrl = new AbortController();
-  const tid = setTimeout(() => ctrl.abort(), 20000);
-  try {
-    const res = await fetch(url.toString(), {
-      signal: ctrl.signal,
-      headers: { Accept: 'application/json', 'User-Agent': 'alternance-aggregator/1.0' },
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const offres = [];
-
-    for (const j of (data?.peJobs?.results || [])) {
-      if (!j.job?.id) continue;
-      offres.push({
-        titre:       j.title || 'Offre d\'alternance',
-        entreprise:  j.company?.name || '',
-        localisation: j.place?.city || name,
-        source:      'bonne_alternance',
-        source_id:   `pe_${j.job.id}`,
-        source_url:  j.url || '',
-        description: j.job?.description || '',
-        date_publi:  (j.job?.creationDate || '').split('T')[0],
-        salaire:     '',
-        secteur:     '',
-        tags:        'alternance,apprentissage',
+  for (const url of endpoints) {
+    const ctrl = new AbortController();
+    const tid  = setTimeout(() => ctrl.abort(), 15000);
+    try {
+      const res = await fetch(url, {
+        signal: ctrl.signal,
+        headers: { Accept: 'application/json', 'User-Agent': 'alternance-aggregator/2.0' },
       });
-    }
+      clearTimeout(tid);
+      if (!res.ok) continue;
+      const data = await res.json();
 
-    for (const m of (data?.matchas?.results || [])) {
-      if (!m.job?.id) continue;
-      offres.push({
-        titre:       m.title || 'Offre d\'alternance',
-        entreprise:  m.company?.name || '',
-        localisation: m.place?.city || name,
-        source:      'bonne_alternance',
-        source_id:   `matcha_${m.job.id}`,
-        source_url:  `https://labonnealternance.apprentissage.beta.gouv.fr/recherche-apprentissage`,
-        description: m.job?.description || '',
-        date_publi:  (m.job?.creationDate || '').split('T')[0],
-        salaire:     '',
-        secteur:     '',
-        tags:        'alternance,cfa',
-      });
-    }
+      const offres = [];
+      // Format v1 : { peJobs: { results: [] }, matchas: { results: [] } }
+      // Format v2/v3 : { jobs: [] } ou { results: [] } ou { offres: [] }
+      const items = [
+        ...(data?.peJobs?.results || []),
+        ...(data?.matchas?.results || []),
+        ...(data?.jobs || []),
+        ...(data?.results || []),
+        ...(data?.offres || []),
+      ];
 
-    return offres;
-  } finally {
-    clearTimeout(tid);
+      for (const j of items) {
+        const id = j.job?.id || j.id || j.ideq || j._id;
+        const titre = j.title || j.intitule || j.poste || '';
+        if (!id || !titre) continue;
+        offres.push({
+          titre,
+          entreprise:   j.company?.name || j.entreprise?.nom || '',
+          localisation: j.place?.city  || j.lieuTravail?.libelle || name,
+          source:       'bonne_alternance',
+          source_id:    `lba_${id}`,
+          source_url:   j.url || `https://labonnealternance.apprentissage.beta.gouv.fr/`,
+          description:  j.job?.description || j.description || '',
+          date_publi:   (j.job?.creationDate || j.dateCreation || '').split('T')[0],
+          salaire:      j.salaire?.libelle || '',
+          secteur:      j.secteurActiviteLibelle || '',
+          tags:         'alternance,apprentissage',
+        });
+      }
+
+      console.log(`  LBA ${name} (${url.includes('v3') ? 'v3' : url.includes('v2') ? 'v2' : 'v1'}): ${offres.length} offres`);
+      return offres;
+    } catch (e) {
+      clearTimeout(tid);
+      // Tente le prochain endpoint
+    }
   }
+
+  console.log(`  LBA ${name}: aucun endpoint disponible`);
+  return [];
 }
 
 async function scrape() {
   const all = [];
   for (const loc of LOCATIONS) {
-    try {
-      const offres = await scrapeLocation(loc);
-      all.push(...offres);
-      console.log(`  LBA ${loc.name}: ${offres.length} offres`);
-    } catch (e) {
-      console.error(`  LBA ${loc.name}: ${e.message}`);
-    }
+    const offres = await scrapeLocation(loc);
+    all.push(...offres);
   }
   return all;
 }
