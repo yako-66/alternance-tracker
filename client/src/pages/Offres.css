@@ -1,0 +1,128 @@
+.offres-page { padding: 1.5rem; max-width: 900px; margin: 0 auto; }
+
+.offres-header { margin-bottom: 1.5rem; }
+
+.offres-titlerow {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1rem; gap: 1rem; flex-wrap: wrap;
+}
+
+.page-title { font-size: 1.6rem; font-weight: 700; color: var(--text); margin: 0; }
+
+.scrape-btn {
+  display: flex; align-items: center; gap: .4rem;
+  padding: .5rem 1rem; border-radius: 8px; border: none; cursor: pointer;
+  background: var(--purple); color: #fff; font-size: .85rem; font-weight: 600;
+  transition: opacity .2s;
+}
+.scrape-btn:disabled, .scrape-btn.scraping { opacity: .6; cursor: not-allowed; }
+.scrape-btn:not(:disabled):hover { opacity: .85; }
+
+.scrape-toast {
+  font-size: .8rem; color: var(--muted); background: var(--bg2);
+  border-radius: 8px; padding: .5rem .8rem; margin-bottom: .75rem;
+}
+
+.filters-bar {
+  display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; margin-bottom: .75rem;
+}
+
+.filter-q {
+  flex: 1; min-width: 180px; padding: .55rem .8rem; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--bg2); color: var(--text);
+  font-size: .9rem;
+}
+.filter-q:focus { outline: none; border-color: var(--purple); }
+
+.filter-sel {
+  padding: .5rem .6rem; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--bg2); color: var(--text); font-size: .85rem; cursor: pointer;
+}
+
+.filter-fav {
+  display: flex; align-items: center; gap: .4rem;
+  font-size: .85rem; color: var(--muted); cursor: pointer; user-select: none;
+}
+.filter-fav input { cursor: pointer; accent-color: var(--purple); }
+
+.offres-count { font-size: .8rem; color: var(--muted); }
+
+/* List */
+.offres-list { display: flex; flex-direction: column; gap: .75rem; }
+
+/* Card */
+.offre-card {
+  background: var(--bg2); border-radius: 12px; padding: 1rem 1.1rem;
+  cursor: pointer; border: 1px solid var(--border); transition: transform .15s, border-color .15s;
+}
+.offre-card:hover { transform: translateY(-2px); border-color: var(--purple); }
+.offre-new { border-left: 3px solid var(--purple); }
+
+.offre-card-top { display: flex; align-items: flex-start; gap: .8rem; }
+
+.offre-avatar {
+  width: 40px; height: 40px; border-radius: 10px; background: var(--purple);
+  color: #fff; font-weight: 700; font-size: 1rem;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+
+.offre-info { flex: 1; min-width: 0; }
+
+.offre-titre {
+  font-weight: 600; font-size: .95rem; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.offre-sub {
+  display: flex; gap: .6rem; margin-top: .25rem;
+  font-size: .78rem; color: var(--muted); flex-wrap: wrap;
+}
+
+.fav-btn {
+  background: none; border: none; cursor: pointer; font-size: 1.1rem;
+  padding: 0; flex-shrink: 0; line-height: 1;
+  transition: transform .15s;
+}
+.fav-btn:hover { transform: scale(1.2); }
+
+.offre-card-bottom {
+  display: flex; align-items: center; gap: .5rem; margin-top: .6rem; flex-wrap: wrap;
+}
+
+.source-badge {
+  padding: .2rem .55rem; border-radius: 20px; font-size: .7rem; font-weight: 600;
+}
+
+.offre-date { font-size: .75rem; color: var(--muted); }
+
+.offre-new-badge {
+  font-size: .68rem; font-weight: 700; padding: .15rem .4rem;
+  border-radius: 20px; background: var(--purple); color: #fff;
+}
+
+.offre-spacer { flex: 1; }
+
+.score-wrap { width: 60px; height: 4px; background: var(--bg); border-radius: 2px; overflow: hidden; }
+.score-bar  { height: 100%; border-radius: 2px; transition: width .3s; }
+
+/* Empty */
+.offres-empty { text-align: center; padding: 4rem 1rem; color: var(--muted); }
+.empty-icon   { font-size: 3rem; margin-bottom: 1rem; }
+.offres-empty p { margin-bottom: 1.5rem; }
+
+/* Skeleton */
+.skeleton-offre {
+  opacity: .5; animation: pulse 1.4s ease-in-out infinite;
+  pointer-events: none; min-height: 80px;
+}
+.skeleton { background: var(--border); border-radius: 6px; }
+.skel-avatar { width: 40px; height: 40px; border-radius: 10px; }
+.skel-line { height: 14px; border-radius: 4px; margin: 4px 0; }
+
+@keyframes pulse { 0%,100% { opacity: .4; } 50% { opacity: .8; } }
+
+@media (max-width: 600px) {
+  .offres-page { padding: 1rem .75rem; }
+  .filter-q { min-width: 120px; }
+  .offres-titlerow { flex-direction: column; align-items: flex-start; }
+}
