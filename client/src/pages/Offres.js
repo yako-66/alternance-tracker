@@ -3,25 +3,6 @@ import { api } from '../hooks/api';
 import { SOURCE_COLORS, SOURCE_LABELS } from '../App';
 import './Offres.css';
 
-function SourceBadge({ source }) {
-  const color = SOURCE_COLORS[source] || '#666';
-  return (
-    <span className="source-badge" style={{ background: color + '22', color }}>
-      {SOURCE_LABELS[source] || source}
-    </span>
-  );
-}
-
-function ScoreBar({ score }) {
-  if (!score) return null;
-  const color = score >= 70 ? '#00d4a0' : score >= 40 ? '#ff9f43' : '#888';
-  return (
-    <div className="score-wrap" title={`Match profil : ${score}/100`}>
-      <div className="score-bar" style={{ width: `${score}%`, background: color }} />
-    </div>
-  );
-}
-
 function daysSince(dateStr) {
   if (!dateStr) return null;
   const d = new Date(dateStr);
@@ -29,52 +10,81 @@ function daysSince(dateStr) {
   const diff = Math.floor((Date.now() - d) / 86400000);
   if (diff === 0) return "Aujourd'hui";
   if (diff === 1) return 'Hier';
-  if (diff < 7)  return `Il y a ${diff}j`;
-  if (diff < 30) return `Il y a ${Math.floor(diff / 7)}sem`;
-  return `Il y a ${Math.floor(diff / 30)}mois`;
+  if (diff < 7)  return `${diff}j`;
+  if (diff < 30) return `${Math.floor(diff / 7)}sem`;
+  return `${Math.floor(diff / 30)}mois`;
 }
 
-function OffreCard({ offre, onFavori, onClick }) {
+function MatchPill({ score }) {
+  if (!score) return null;
+  const color = score >= 70 ? '#10B981' : score >= 40 ? '#F59E0B' : '#94A3B8';
+  const bg    = score >= 70 ? '#ECFDF5' : score >= 40 ? '#FFFBEB' : '#F1F5F9';
   return (
-    <div className={`offre-card ${!offre.vu ? 'offre-new' : ''}`} onClick={() => onClick(offre.id)}>
-      <div className="offre-card-top">
-        <div className="offre-avatar">{(offre.entreprise?.[0] || offre.titre?.[0] || '?').toUpperCase()}</div>
-        <div className="offre-info">
-          <div className="offre-titre">{offre.titre}</div>
-          <div className="offre-sub">
-            {offre.entreprise   && <span>{offre.entreprise}</span>}
-            {offre.localisation && <span>📍 {offre.localisation}</span>}
-            {offre.salaire      && <span>💰 {offre.salaire}</span>}
+    <span className="match-pill" style={{ color, background: bg }}>
+      {score}% match
+    </span>
+  );
+}
+
+function OffreCard({ offre, onFavori, onNavigate }) {
+  const srcColor = SOURCE_COLORS[offre.source] || '#94A3B8';
+  const isNew    = !offre.vu;
+
+  return (
+    <div className={`ocard ${isNew ? 'ocard-new' : ''}`} onClick={() => onNavigate(offre.id)}>
+      {isNew && <div className="ocard-new-dot" />}
+
+      <div className="ocard-top">
+        <div className="ocard-avatar" style={{ background: srcColor + '22', color: srcColor }}>
+          {(offre.entreprise?.[0] || offre.titre?.[0] || '?').toUpperCase()}
+        </div>
+        <div className="ocard-body">
+          <div className="ocard-titre">{offre.titre}</div>
+          <div className="ocard-meta">
+            {offre.entreprise && <span className="ocard-company">{offre.entreprise}</span>}
+            {offre.localisation && <span>📍 {offre.localisation.split(',')[0]}</span>}
           </div>
         </div>
         <button
-          className={`fav-btn ${offre.favori ? 'on' : ''}`}
+          className={`ocard-fav ${offre.favori ? 'on' : ''}`}
           onClick={e => { e.stopPropagation(); onFavori(offre); }}
-          title={offre.favori ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-        >{offre.favori ? '❤️' : '🤍'}</button>
+        >
+          {offre.favori ? '❤️' : '🤍'}
+        </button>
       </div>
-      <div className="offre-card-bottom">
-        <SourceBadge source={offre.source} />
-        {offre.date_publi && <span className="offre-date">{daysSince(offre.date_publi)}</span>}
-        {!offre.vu && <span className="offre-new-badge">Nouveau</span>}
-        <div className="offre-spacer" />
-        <ScoreBar score={offre.score_match} />
+
+      <div className="ocard-bottom">
+        <span className="ocard-src" style={{ color: srcColor, background: srcColor + '15' }}>
+          {SOURCE_LABELS[offre.source] || offre.source}
+        </span>
+        {offre.salaire && <span className="ocard-sal">💰 {offre.salaire}</span>}
+        {offre.date_publi && <span className="ocard-date">{daysSince(offre.date_publi)}</span>}
+        <div style={{ flex: 1 }} />
+        <MatchPill score={offre.score_match} />
+        {offre.source_url && (
+          <a
+            className="ocard-apply"
+            href={offre.source_url}
+            target="_blank" rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+          >
+            Postuler →
+          </a>
+        )}
       </div>
     </div>
   );
 }
 
-function SkeletonCards() {
+function Skeleton() {
   return (
     <div className="offres-list">
-      {[1,2,3,4,5,6].map(i => (
-        <div key={i} className="offre-card skeleton-offre" style={{ animationDelay: `${i * 60}ms` }}>
-          <div className="offre-card-top">
-            <div className="skeleton skel-avatar" />
-            <div className="offre-info">
-              <div className="skeleton skel-line" style={{ width: '60%' }} />
-              <div className="skeleton skel-line" style={{ width: '40%', height: '10px', marginTop: '6px' }} />
-            </div>
+      {[1,2,3,4,5].map(i => (
+        <div key={i} className="ocard-skel" style={{ animationDelay: `${i * 80}ms` }}>
+          <div className="skel-avatar" />
+          <div className="skel-lines">
+            <div className="skel-line" style={{ width: '65%' }} />
+            <div className="skel-line" style={{ width: '40%', height: '11px' }} />
           </div>
         </div>
       ))}
@@ -88,35 +98,41 @@ export default function Offres({ navigate }) {
   const [loading,  setLoading]  = useState(true);
   const [scraping, setScraping] = useState(false);
   const [toast,    setToast]    = useState('');
-  const [filters,  setFilters]  = useState({ q: '', source: '', sort: 'date', favori: false });
+  const [q,        setQ]        = useState('');
+  const [source,   setSource]   = useState('');
+  const [sort,     setSort]     = useState('score'); // meilleur match par défaut
+  const [favsOnly, setFavsOnly] = useState(false);
   const debRef = useRef(null);
 
-  const load = useCallback(async (f) => {
+  const load = useCallback(async (params) => {
     setLoading(true);
     const p = new URLSearchParams();
-    if (f.q)      p.set('q', f.q);
-    if (f.source) p.set('source', f.source);
-    p.set('sort', f.sort);
-    if (f.favori) p.set('favori', '1');
-    p.set('limit', '300');
+    if (params.q)       p.set('q', params.q);
+    if (params.source)  p.set('source', params.source);
+    if (params.favsOnly) p.set('favori', '1');
+    p.set('sort', params.sort || 'score');
+    p.set('limit', '200');
     try {
       const data = await api.get(`/api/offres?${p}`);
       setOffres(data.offres || []);
       setTotal(data.total || 0);
-    } catch (e) { console.error(e); }
+    } catch {}
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(filters); }, []);
+  useEffect(() => { load({ q, source, sort, favsOnly }); }, []);
 
-  const setFilter = (key, val) => {
-    const f = { ...filters, [key]: val };
-    setFilters(f);
+  const update = (key, val) => {
+    const next = { q, source, sort, favsOnly, [key]: val };
     if (key === 'q') {
+      if (key === 'q') setQ(val);
       clearTimeout(debRef.current);
-      debRef.current = setTimeout(() => load(f), 300);
+      debRef.current = setTimeout(() => load(next), 320);
     } else {
-      load(f);
+      if (key === 'source')   setSource(val);
+      if (key === 'sort')     setSort(val);
+      if (key === 'favsOnly') setFavsOnly(val);
+      load(next);
     }
   };
 
@@ -130,70 +146,102 @@ export default function Offres({ navigate }) {
 
   const handleScrape = async () => {
     setScraping(true);
-    setToast('');
     try {
       await api.post('/api/scrape', {});
-      setToast('Scraping lancé en arrière-plan (cela prend ~30s)…');
-      setTimeout(() => { load(filters); setScraping(false); }, 35000);
+      setToast('Scraping en cours (~30s)…');
+      setTimeout(() => {
+        load({ q, source, sort, favsOnly });
+        setScraping(false);
+        setToast('');
+      }, 35000);
     } catch { setScraping(false); }
   };
 
+  // Groupes : nouvelles d'abord, puis le reste
+  const nouvelles = offres.filter(o => !o.vu);
+  const vues      = offres.filter(o =>  o.vu);
+
   return (
     <div className="offres-page">
-      <div className="offres-header">
-        <div className="offres-titlerow">
-          <h1 className="page-title">Offres d'alternance</h1>
-          <button className={`scrape-btn ${scraping ? 'scraping' : ''}`} onClick={handleScrape} disabled={scraping}>
-            {scraping ? '⏳ En cours…' : '🔄 Rafraîchir'}
+      {/* Header */}
+      <div className="offres-hd">
+        <div className="offres-hd-row">
+          <h1 className="page-title">Offres</h1>
+          <button className={`scrape-btn ${scraping ? 'spin' : ''}`} onClick={handleScrape} disabled={scraping} title="Rafraîchir">
+            {scraping ? '⏳' : '🔄'}
           </button>
         </div>
-        {toast && <div className="scrape-toast">{toast}</div>}
+        {toast && <div className="offres-toast">{toast}</div>}
 
-        <div className="filters-bar">
+        {/* Filtres */}
+        <div className="filters">
           <input
-            className="filter-q"
-            placeholder="🔍 Titre, entreprise, ville…"
-            value={filters.q}
-            onChange={e => setFilter('q', e.target.value)}
+            className="f-search"
+            placeholder="🔍 Rechercher…"
+            value={q}
+            onChange={e => { setQ(e.target.value); update('q', e.target.value); }}
           />
-          <select className="filter-sel" value={filters.source} onChange={e => setFilter('source', e.target.value)}>
-            <option value="">Toutes sources</option>
-            <option value="france_travail">France Travail</option>
-            <option value="bonne_alternance">La Bonne Alternance</option>
-            <option value="hellowork">HelloWork</option>
-            <option value="manual">Manuel</option>
-          </select>
-          <select className="filter-sel" value={filters.sort} onChange={e => setFilter('sort', e.target.value)}>
-            <option value="date">Plus récentes</option>
-            <option value="score">Meilleur match</option>
-            <option value="entreprise">Entreprise A-Z</option>
-          </select>
-          <label className="filter-fav">
-            <input type="checkbox" checked={filters.favori} onChange={e => setFilter('favori', e.target.checked)} />
-            Favoris
-          </label>
+          <div className="f-row">
+            <select className="f-sel" value={source} onChange={e => update('source', e.target.value)}>
+              <option value="">Toutes sources</option>
+              <option value="adzuna">Adzuna</option>
+              <option value="france_travail">France Travail</option>
+              <option value="bonne_alternance">LBA</option>
+              <option value="demo">Démo</option>
+            </select>
+            <select className="f-sel" value={sort} onChange={e => update('sort', e.target.value)}>
+              <option value="score">⭐ Meilleur match</option>
+              <option value="date">🕐 Plus récentes</option>
+              <option value="entreprise">🏢 Entreprise A-Z</option>
+            </select>
+            <button
+              className={`f-fav-btn ${favsOnly ? 'on' : ''}`}
+              onClick={() => update('favsOnly', !favsOnly)}
+            >
+              {favsOnly ? '❤️' : '🤍'} Favoris
+            </button>
+          </div>
         </div>
+
         <div className="offres-count">
-          {loading ? '…' : `${offres.length} offre${offres.length !== 1 ? 's' : ''}${total > offres.length ? ` sur ${total}` : ''}`}
+          {loading ? 'Chargement…' : `${offres.length} offre${offres.length > 1 ? 's' : ''}${nouvelles.length ? ` · ${nouvelles.length} nouvelles` : ''}`}
         </div>
       </div>
 
-      {loading ? <SkeletonCards /> : offres.length === 0 ? (
-        <div className="offres-empty">
-          <div className="empty-icon">📭</div>
-          <p>Aucune offre trouvée.</p>
-          {!filters.q && !filters.source && (
-            <button className="scrape-btn" onClick={handleScrape} disabled={scraping}>
+      {/* Contenu */}
+      {loading ? <Skeleton /> : offres.length === 0 ? (
+        <div className="offres-vide">
+          <div className="vide-icon">📭</div>
+          <p>{favsOnly ? 'Aucun favori encore.' : 'Aucune offre trouvée.'}</p>
+          {!q && !source && !favsOnly && (
+            <button className="scrape-btn lg" onClick={handleScrape} disabled={scraping}>
               {scraping ? '⏳ En cours…' : '🔄 Lancer le scraping'}
             </button>
           )}
         </div>
       ) : (
-        <div className="offres-list">
-          {offres.map(o => (
-            <OffreCard key={o.id} offre={o} onFavori={handleFavori} onClick={id => navigate('detail', id)} />
-          ))}
-        </div>
+        <>
+          {nouvelles.length > 0 && (
+            <section>
+              <div className="section-lbl">🆕 Nouvelles offres</div>
+              <div className="offres-list">
+                {nouvelles.map(o => (
+                  <OffreCard key={o.id} offre={o} onFavori={handleFavori} onNavigate={id => navigate('detail', id)} />
+                ))}
+              </div>
+            </section>
+          )}
+          {vues.length > 0 && (
+            <section>
+              {nouvelles.length > 0 && <div className="section-lbl">Déjà vues</div>}
+              <div className="offres-list">
+                {vues.map(o => (
+                  <OffreCard key={o.id} offre={o} onFavori={handleFavori} onNavigate={id => navigate('detail', id)} />
+                ))}
+              </div>
+            </section>
+          )}
+        </>
       )}
     </div>
   );

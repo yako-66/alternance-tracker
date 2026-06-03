@@ -125,7 +125,8 @@ export default function App() {
   const [serverElapsed, setServerElapsed] = useState(0);
   const [darkMode, setDarkMode]   = useState(() => {
     const s = localStorage.getItem('theme');
-    return s ? s === 'dark' : (window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false);
+    // Thème clair par défaut (ignore la préférence système)
+    return s === 'dark';
   });
   const [showSearch, setShowSearch] = useState(false);
 
