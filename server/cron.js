@@ -61,8 +61,14 @@ const DEMO_OFFRES = [
 ];
 
 async function seedDemoIfEmpty() {
-  const rows = await query('SELECT COUNT(*) as c FROM offres');
-  if (Number(rows[0].c) > 0) return;
+  const real = await query('SELECT COUNT(*) as c FROM offres WHERE source != \'demo\'');
+  if (Number(real[0].c) > 0) {
+    // Des vraies offres existent — supprimer les démos
+    await run('DELETE FROM offres WHERE source = \'demo\'');
+    return;
+  }
+  const all = await query('SELECT COUNT(*) as c FROM offres');
+  if (Number(all[0].c) > 0) return;
   console.log('📋 DB vide — insertion des offres de démo…');
   await saveOffres(DEMO_OFFRES);
   console.log('✅ Offres de démo insérées (source: demo)');

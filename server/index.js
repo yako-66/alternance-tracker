@@ -189,6 +189,15 @@ app.post('/api/scrape', (req, res) => {
   res.json({ message: 'Scraping démarré en arrière-plan' });
 });
 
+// ── Suppression par source ────────────────────────────────────────────────────
+
+app.delete('/api/offres/source/:source', async (req, res) => {
+  try {
+    await run('DELETE FROM offres WHERE source = ?', [req.params.source]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── SPA fallback ──────────────────────────────────────────────────────────────
 
 app.get('*', (req, res) => {
