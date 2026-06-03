@@ -198,6 +198,33 @@ app.delete('/api/offres/source/:source', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Debug France Travail (temporaire) ────────────────────────────────────────
+
+app.get('/api/debug/ft', async (req, res) => {
+  const id     = process.env.FRANCE_TRAVAIL_CLIENT_ID;
+  const secret = process.env.FRANCE_TRAVAIL_CLIENT_SECRET;
+  if (!id) return res.json({ error: 'Clés FT absentes' });
+
+  try {
+    // 1. Auth
+    const body = new URLSearchParams({ grant_type:'client_credentials', client_id:id, client_secret:secret, scope:'api_offresdemploiv2 o2dsoffre' });
+    const auth = await fetch('https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=/partenaire', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:body.toString() });
+    const authData = await auth.json();
+    if (!auth.ok) return res.json({ step:'auth', status:auth.status, error: authData });
+
+    const token = authData.access_token;
+
+    // 2. Search simple (sans commune, juste typeContrat)
+    const url = new URL('https://api.francetravail.io/partenaire/offresdemploi/v2/offres/search');
+    url.searchParams.set('typeContrat','E2');
+    url.searchParams.set('departement','69');
+    url.searchParams.set('range','0-9');
+    const search = await fetch(url.toString(), { headers:{ Authorization:`Bearer ${token}`, Accept:'application/json' } });
+    const searchData = search.status === 204 ? { resultats:[] } : await search.json();
+    res.json({ step:'search', status:search.status, total:searchData.resultats?.length || 0, sample:searchData.resultats?.[0]?.intitule || null, error: searchData.error || null });
+  } catch(e) { res.json({ error: e.message }); }
+});
+
 // ── SPA fallback ──────────────────────────────────────────────────────────────
 
 app.get('*', (req, res) => {
