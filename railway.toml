@@ -1,13 +1,9 @@
 [build]
 builder = "nixpacks"
-buildCommand = "npm install && cd client && npm install && npm run build"
 
 [deploy]
-startCommand = "node server/index.js"
+startCommand = "npm install && node server/index.js"
 healthcheckPath = "/api/ping"
 healthcheckTimeout = 30
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
-
-[environments.production.variables]
-NODE_ENV = "production"
