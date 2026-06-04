@@ -104,6 +104,7 @@ button {
   font-family: var(--font-body); cursor: pointer;
   border: none; outline: none; transition: var(--t);
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 input, textarea, select {

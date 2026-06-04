@@ -61,6 +61,21 @@ function StatutBar({ name, count, max, color }) {
   );
 }
 
+function CandPreview({ c, navigate }) {
+  if (!c) return null;
+  const color = STATUT_COLORS[c.statut] || '#888';
+  return (
+    <div className="preview-card" onClick={() => navigate('candidatures')}>
+      <div className="preview-avatar">{(c.entreprise?.[0] || c.poste?.[0] || '?').toUpperCase()}</div>
+      <div className="preview-info">
+        <div className="preview-titre">{c.poste || c.entreprise}</div>
+        <div className="preview-sub">{[c.entreprise, c.localisation].filter(Boolean).join(' · ') || c.entreprise}</div>
+      </div>
+      <span className="preview-src" style={{ background: color + '22', color }}>{c.statut}</span>
+    </div>
+  );
+}
+
 export default function Dashboard({ navigate }) {
   const [stats,   setStats]   = useState(null);
   const [loading, setLoading] = useState(true);
@@ -118,6 +133,16 @@ export default function Dashboard({ navigate }) {
           </div>
         )}
       </div>
+
+      {stats?.recent?.length > 0 && (
+        <div className="dash-section" style={{ marginTop: '1rem' }}>
+          <div className="section-title-row">
+            <div className="section-title">Dernières candidatures</div>
+            <button className="see-all-btn" onClick={() => navigate('candidatures')}>Tout voir →</button>
+          </div>
+          {stats.recent.map(c => <CandPreview key={c.id} c={c} navigate={navigate} />)}
+        </div>
+      )}
 
       {!loading && !stats?.total && (
         <div className="dash-empty">

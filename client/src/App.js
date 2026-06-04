@@ -213,12 +213,6 @@ export default function App() {
             <span>{n.icon}</span><span>{n.label}</span>
           </button>
         ))}
-        <button className="bottom-nav-btn" onClick={() => setShowSearch(true)}>
-          <span>🔍</span><span>Chercher</span>
-        </button>
-        <button className="bottom-nav-btn" onClick={() => navigate('settings')}>
-          <span>⚙️</span><span>Réglages</span>
-        </button>
       </nav>
     </div>
   );

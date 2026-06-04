@@ -57,7 +57,8 @@ app.get('/api/candidatures/stats', async (req, res) => {
     const history    = await query('SELECT substr(created_at,1,10) as day, COUNT(*) as count FROM candidatures WHERE archived=0 GROUP BY day ORDER BY day DESC LIMIT 30');
     const interviews = Number((await query('SELECT COUNT(*) as c FROM candidatures WHERE statut=\'Entretien\' AND archived=0'))[0].c);
     const pending    = Number((await query('SELECT COUNT(*) as c FROM candidatures WHERE date_rappel!=\'\' AND date_rappel IS NOT NULL AND statut NOT IN (\'Refus\',\'Sans suite\') AND archived=0'))[0].c);
-    res.json({ total, byStatut, byLoc, bySec, history, interviews, pending });
+    const recent     = await query('SELECT * FROM candidatures WHERE archived=0 ORDER BY id DESC LIMIT 5');
+    res.json({ total, byStatut, byLoc, bySec, history, interviews, pending, recent });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
