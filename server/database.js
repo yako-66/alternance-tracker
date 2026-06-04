@@ -6,6 +6,23 @@ const client = createClient({
 });
 
 async function getDb() {
+  // Migration : ajoute les colonnes manquantes si la table existe déjà
+  const migrations = [
+    'ALTER TABLE candidatures ADD COLUMN localisation  TEXT DEFAULT ""',
+    'ALTER TABLE candidatures ADD COLUMN priorite      INTEGER DEFAULT 0',
+    'ALTER TABLE candidatures ADD COLUMN score         INTEGER DEFAULT 0',
+    'ALTER TABLE candidatures ADD COLUMN date_entretien TEXT DEFAULT ""',
+    'ALTER TABLE candidatures ADD COLUMN archived      INTEGER DEFAULT 0',
+    'ALTER TABLE candidatures ADD COLUMN tags          TEXT DEFAULT ""',
+    'ALTER TABLE candidatures ADD COLUMN salaire       TEXT DEFAULT ""',
+    'ALTER TABLE candidatures ADD COLUMN secteur       TEXT DEFAULT ""',
+    'ALTER TABLE candidatures ADD COLUMN taille        TEXT DEFAULT ""',
+    'ALTER TABLE candidatures ADD COLUMN date_rappel   TEXT DEFAULT ""',
+  ];
+  for (const sql of migrations) {
+    try { await client.execute(sql); } catch {}
+  }
+
   await client.execute(`
     CREATE TABLE IF NOT EXISTS candidatures (
       id               INTEGER PRIMARY KEY AUTOINCREMENT,
