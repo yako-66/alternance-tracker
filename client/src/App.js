@@ -1,36 +1,27 @@
 import React, { useEffect, useRef, useState } from 'react';
-import Dashboard   from './pages/Dashboard';
-import Offres      from './pages/Offres';
-import DetailOffre from './pages/DetailOffre';
-import Favoris     from './pages/Favoris';
-import Stats       from './pages/Stats';
-import Settings    from './pages/Settings';
-import MapGlobale  from './pages/MapGlobale';
-import { api }     from './hooks/api';
+import Dashboard    from './pages/Dashboard';
+import Candidatures from './pages/Candidatures';
+import Calendar     from './pages/Calendar';
+import Stats        from './pages/Stats';
+import Settings     from './pages/Settings';
+import MapGlobale   from './pages/MapGlobale';
+import { api }      from './hooks/api';
 import './App.css';
 
-export const SOURCE_COLORS = {
-  france_travail:   '#2563eb',
-  bonne_alternance: '#16a34a',
-  hellowork:        '#d97706',
-  manual:           '#7c3aed',
-};
-export const SOURCE_LABELS = {
-  france_travail:   'France Travail',
-  bonne_alternance: 'La Bonne Alternance',
-  hellowork:        'HelloWork',
-  manual:           'Manuel',
+const STATUT_COLORS = {
+  'Postulé':'#4ecdc4','En attente':'#ff9f43','En attente de réponse':'#ffd93d',
+  'Entretien':'#00d4a0','Refus':'#ff6b6b','Sans suite':'#4a4a60'
 };
 
 function GlobalSearch({ navigate, onClose }) {
-  const [val, setVal]       = useState('');
+  const [val, setVal]         = useState('');
   const [results, setResults] = useState([]);
-  const [all, setAll]       = useState([]);
-  const [idx, setIdx]       = useState(0);
-  const inputRef            = useRef(null);
+  const [all, setAll]         = useState([]);
+  const [idx, setIdx]         = useState(0);
+  const inputRef              = useRef(null);
 
   useEffect(() => {
-    api.get('/api/offres?limit=500').then(d => setAll(d.offres || [])).catch(() => {});
+    api.get('/api/candidatures').then(d => setAll(d || [])).catch(() => {});
     inputRef.current?.focus();
   }, []);
 
@@ -38,22 +29,22 @@ function GlobalSearch({ navigate, onClose }) {
     if (!val.trim()) { setResults([]); setIdx(0); return; }
     const q = val.toLowerCase();
     setResults(
-      all.filter(o =>
-        o.titre?.toLowerCase().includes(q) ||
-        o.entreprise?.toLowerCase().includes(q) ||
-        o.localisation?.toLowerCase().includes(q)
+      all.filter(c =>
+        c.entreprise?.toLowerCase().includes(q) ||
+        c.poste?.toLowerCase().includes(q) ||
+        c.localisation?.toLowerCase().includes(q)
       ).slice(0, 8)
     );
     setIdx(0);
   }, [val, all]);
 
-  const go = (o) => { navigate('detail', o.id); onClose(); };
+  const go = () => { navigate('candidatures'); onClose(); };
 
   const handleKey = (e) => {
     if (e.key === 'Escape') { onClose(); return; }
     if (e.key === 'ArrowDown') { e.preventDefault(); setIdx(i => Math.min(i + 1, results.length - 1)); }
     if (e.key === 'ArrowUp')   { e.preventDefault(); setIdx(i => Math.max(i - 1, 0)); }
-    if (e.key === 'Enter' && results[idx]) go(results[idx]);
+    if (e.key === 'Enter' && results[idx]) go();
   };
 
   return (
@@ -63,7 +54,7 @@ function GlobalSearch({ navigate, onClose }) {
           <span className="gsearch-icon">🔍</span>
           <input
             ref={inputRef} className="gsearch-input"
-            placeholder="Titre, entreprise, ville…"
+            placeholder="Entreprise, poste, ville…"
             value={val} onChange={e => setVal(e.target.value)} onKeyDown={handleKey}
           />
           {val && <button className="gsearch-clear" onClick={() => setVal('')}>✕</button>}
@@ -71,19 +62,19 @@ function GlobalSearch({ navigate, onClose }) {
         </div>
         {results.length > 0 && (
           <div className="gsearch-results">
-            {results.map((o, i) => (
+            {results.map((c, i) => (
               <div
-                key={o.id}
+                key={c.id}
                 className={`gsearch-result ${i === idx ? 'gsearch-result-active' : ''}`}
-                onClick={() => go(o)} onMouseEnter={() => setIdx(i)}
+                onClick={go} onMouseEnter={() => setIdx(i)}
               >
-                <div className="gsearch-avatar">{(o.entreprise?.[0] || o.titre?.[0] || '?').toUpperCase()}</div>
+                <div className="gsearch-avatar">{(c.entreprise?.[0] || c.poste?.[0] || '?').toUpperCase()}</div>
                 <div className="gsearch-info">
-                  <div className="gsearch-name">{o.titre}</div>
-                  <div className="gsearch-meta">{[o.entreprise, o.localisation].filter(Boolean).join(' · ')}</div>
+                  <div className="gsearch-name">{c.poste || c.entreprise}</div>
+                  <div className="gsearch-meta">{[c.entreprise, c.localisation].filter(Boolean).join(' · ')}</div>
                 </div>
-                <span className="gsearch-statut" style={{ background: (SOURCE_COLORS[o.source] || '#666') + '22', color: SOURCE_COLORS[o.source] || '#666' }}>
-                  {SOURCE_LABELS[o.source] || o.source}
+                <span className="gsearch-statut" style={{ background: (STATUT_COLORS[c.statut] || '#666') + '22', color: STATUT_COLORS[c.statut] || '#666' }}>
+                  {c.statut}
                 </span>
               </div>
             ))}
@@ -119,18 +110,12 @@ function WakeupScreen({ elapsed }) {
 }
 
 export default function App() {
-  const [page, setPage]           = useState('dashboard');
-  const [selectedId, setSelectedId] = useState(null);
+  const [page, setPage]               = useState('dashboard');
   const [serverReady, setServerReady] = useState(false);
   const [serverElapsed, setServerElapsed] = useState(0);
-  const [darkMode, setDarkMode]   = useState(() => {
-    const s = localStorage.getItem('theme');
-    // Thème clair par défaut (ignore la préférence système)
-    return s === 'dark';
-  });
-  const [showSearch, setShowSearch] = useState(false);
+  const [darkMode, setDarkMode]       = useState(() => localStorage.getItem('theme') === 'dark');
+  const [showSearch, setShowSearch]   = useState(false);
 
-  // Ping serveur
   useEffect(() => {
     const t0 = Date.now();
     let cancelled = false, timer;
@@ -175,18 +160,16 @@ export default function App() {
     return () => document.removeEventListener('keydown', h);
   }, []);
 
-  const navigate   = (p, id = null) => { setPage(p); setSelectedId(id); window.scrollTo(0, 0); };
+  const navigate   = (p) => { setPage(p); window.scrollTo(0, 0); };
   const toggleDark = () => setDarkMode(d => { localStorage.setItem('theme_manual', '1'); return !d; });
 
   const NAV = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'offres',    label: 'Offres',    icon: '📋' },
-    { id: 'favoris',   label: 'Favoris',   icon: '❤️' },
-    { id: 'carte',     label: 'Carte',     icon: '🗺️' },
-    { id: 'stats',     label: 'Stats',     icon: '📈' },
+    { id: 'dashboard',    label: 'Dashboard',    icon: '📊' },
+    { id: 'candidatures', label: 'Candidatures', icon: '📝' },
+    { id: 'calendar',     label: 'Calendrier',   icon: '📅' },
+    { id: 'carte',        label: 'Carte',        icon: '🗺️' },
+    { id: 'stats',        label: 'Stats',        icon: '📈' },
   ];
-
-  const isActive = (id) => id === 'offres' ? (page === 'offres' || page === 'detail') : page === id;
 
   if (!serverReady && serverElapsed >= 3) return <WakeupScreen elapsed={serverElapsed} />;
 
@@ -201,7 +184,7 @@ export default function App() {
         </div>
         <div className="nav-links">
           {NAV.map(n => (
-            <button key={n.id} className={`nav-btn ${isActive(n.id) ? 'active' : ''}`} onClick={() => navigate(n.id)}>
+            <button key={n.id} className={`nav-btn ${page === n.id ? 'active' : ''}`} onClick={() => navigate(n.id)}>
               {n.label}
             </button>
           ))}
@@ -216,18 +199,17 @@ export default function App() {
       </nav>
 
       <main className="main">
-        {page === 'dashboard' && <Dashboard navigate={navigate} />}
-        {page === 'offres'    && <Offres    navigate={navigate} />}
-        {page === 'detail'    && <DetailOffre id={selectedId} navigate={navigate} />}
-        {page === 'favoris'   && <Favoris   navigate={navigate} />}
-        {page === 'carte'     && <MapGlobale navigate={navigate} />}
-        {page === 'stats'     && <Stats />}
-        {page === 'settings'  && <Settings />}
+        {page === 'dashboard'    && <Dashboard    navigate={navigate} />}
+        {page === 'candidatures' && <Candidatures navigate={navigate} />}
+        {page === 'calendar'     && <Calendar     navigate={navigate} />}
+        {page === 'carte'        && <MapGlobale   navigate={navigate} />}
+        {page === 'stats'        && <Stats />}
+        {page === 'settings'     && <Settings />}
       </main>
 
       <nav className="bottom-nav">
         {NAV.map(n => (
-          <button key={n.id} className={`bottom-nav-btn ${isActive(n.id) ? 'active' : ''}`} onClick={() => navigate(n.id)}>
+          <button key={n.id} className={`bottom-nav-btn ${page === n.id ? 'active' : ''}`} onClick={() => navigate(n.id)}>
             <span>{n.icon}</span><span>{n.label}</span>
           </button>
         ))}

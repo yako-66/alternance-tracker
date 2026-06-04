@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../hooks/api';
-import { SOURCE_COLORS, SOURCE_LABELS } from '../App';
 import './MapGlobale.css';
 
 const geoCache = new Map();
@@ -20,20 +19,25 @@ async function geocode(loc) {
   } catch { return null; }
 }
 
+const STATUT_COLORS = {
+  'Postulé':'#4ecdc4','En attente':'#ff9f43','En attente de réponse':'#ffd93d',
+  'Entretien':'#00d4a0','Refus':'#ff6b6b','Sans suite':'#4a4a60'
+};
+
 export default function MapGlobale({ navigate }) {
   const mapRef     = useRef(null);
   const leafletMap = useRef(null);
-  const [offres,   setOffres]   = useState([]);
+  const [candidatures, setCandidatures] = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [geocoded, setGeocoded] = useState(0);
   const [total,    setTotal]    = useState(0);
 
   useEffect(() => {
-    api.get('/api/offres?limit=500').then(d => setOffres(d.offres || [])).catch(() => {});
+    api.get('/api/candidatures').then(d => setCandidatures(d || [])).catch(() => {});
   }, []);
 
   useEffect(() => {
-    if (!offres.length || !mapRef.current) return;
+    if (!candidatures.length || !mapRef.current) return;
 
     const init = () => {
       if (!window.L) { setTimeout(init, 100); return; }
@@ -47,15 +51,14 @@ export default function MapGlobale({ navigate }) {
         attribution: '© OpenStreetMap contributors', maxZoom: 18,
       }).addTo(map);
 
-      map.setView([45.75, 4.85], 8); // centré Lyon/Saint-Étienne
+      map.setView([45.75, 4.85], 8);
 
-      // Grouper par localisation
       const byLoc = {};
-      offres.forEach(o => {
-        const loc = (o.localisation || '').split('(')[0].trim(); // "Lyon (69)" → "Lyon"
+      candidatures.forEach(c => {
+        const loc = (c.localisation || '').split('(')[0].trim();
         if (!loc) return;
         if (!byLoc[loc]) byLoc[loc] = [];
-        byLoc[loc].push(o);
+        byLoc[loc].push(c);
       });
 
       const locs = Object.keys(byLoc);
@@ -76,11 +79,10 @@ export default function MapGlobale({ navigate }) {
           const items = byLoc[loc];
           bounds.push([coords.lat, coords.lon]);
 
-          // Couleur par source dominante
-          const srcCounts = {};
-          items.forEach(o => { srcCounts[o.source] = (srcCounts[o.source] || 0) + 1; });
-          const domSrc = Object.entries(srcCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'manual';
-          const color  = SOURCE_COLORS[domSrc] || '#7c3aed';
+          const statCounts = {};
+          items.forEach(c => { statCounts[c.statut] = (statCounts[c.statut] || 0) + 1; });
+          const domStat = Object.entries(statCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Postulé';
+          const color   = STATUT_COLORS[domStat] || '#7c3aed';
 
           const icon = L.divIcon({
             className: '',
@@ -88,11 +90,11 @@ export default function MapGlobale({ navigate }) {
             iconSize: [36, 36], iconAnchor: [18, 18],
           });
 
-          const popupHtml = items.slice(0, 5).map(o => `
+          const popupHtml = items.slice(0, 5).map(c => `
             <div class="map-popup-item">
-              <strong>${o.entreprise || o.titre}</strong><br/>
-              <span style="color:${SOURCE_COLORS[o.source]||'#666'};font-size:11px;font-weight:600">${SOURCE_LABELS[o.source] || o.source}</span>
-              <span style="font-size:11px;color:#888"> — ${o.titre.slice(0, 50)}</span>
+              <strong>${c.entreprise || c.poste}</strong><br/>
+              <span style="color:${STATUT_COLORS[c.statut]||'#666'};font-size:11px;font-weight:600">${c.statut}</span>
+              <span style="font-size:11px;color:#888"> — ${(c.poste||'').slice(0, 50)}</span>
             </div>
           `).join('<hr style="margin:5px 0;border-color:#eee"/>');
 
@@ -100,8 +102,8 @@ export default function MapGlobale({ navigate }) {
 
           L.marker([coords.lat, coords.lon], { icon })
             .addTo(map)
-            .bindPopup(`<div class="map-popup"><div class="map-popup-loc">📍 ${loc} · ${items.length} offre${items.length > 1 ? 's' : ''}</div>${popupHtml}${more}</div>`, { maxWidth: 280 })
-            .on('click', () => navigate('offres'));
+            .bindPopup(`<div class="map-popup"><div class="map-popup-loc">📍 ${loc} · ${items.length} candidature${items.length > 1 ? 's' : ''}</div>${popupHtml}${more}</div>`, { maxWidth: 280 })
+            .on('click', () => navigate('candidatures'));
         }
 
         setLoading(false);
@@ -111,17 +113,16 @@ export default function MapGlobale({ navigate }) {
 
     init();
     return () => { if (leafletMap.current) { leafletMap.current.remove(); leafletMap.current = null; } };
-  }, [offres]);
+  }, [candidatures]);
 
-  // Compter par source pour la légende
-  const bySrc = {};
-  offres.forEach(o => { bySrc[o.source] = (bySrc[o.source] || 0) + 1; });
+  const byStat = {};
+  candidatures.forEach(c => { byStat[c.statut] = (byStat[c.statut] || 0) + 1; });
 
   return (
     <div className="map-globale-page">
-      <h1 className="page-title">🗺️ Carte des offres</h1>
+      <h1 className="page-title">🗺️ Carte des candidatures</h1>
 
-      {loading && offres.length > 0 && (
+      {loading && candidatures.length > 0 && (
         <div className="map-loading-bar">
           <div className="map-loading-fill" style={{ width: `${total ? (geocoded / total) * 100 : 0}%` }} />
           <span className="map-loading-label">Géolocalisation… {geocoded}/{total}</span>
@@ -131,16 +132,16 @@ export default function MapGlobale({ navigate }) {
       <div className="map-globale-layout">
         <div ref={mapRef} className="map-globale-container" />
         <div className="map-globale-legend">
-          <div className="map-legend-title">Sources</div>
-          {Object.entries(bySrc).map(([src, count]) => (
-            <div className="map-legend-item" key={src}>
-              <div className="map-legend-dot" style={{ background: SOURCE_COLORS[src] || '#666' }} />
-              <span className="map-legend-label">{SOURCE_LABELS[src] || src}</span>
-              <span className="map-legend-count" style={{ color: SOURCE_COLORS[src] || '#666' }}>{count}</span>
+          <div className="map-legend-title">Statuts</div>
+          {Object.entries(byStat).map(([stat, count]) => (
+            <div className="map-legend-item" key={stat}>
+              <div className="map-legend-dot" style={{ background: STATUT_COLORS[stat] || '#666' }} />
+              <span className="map-legend-label">{stat}</span>
+              <span className="map-legend-count" style={{ color: STATUT_COLORS[stat] || '#666' }}>{count}</span>
             </div>
           ))}
           <div className="map-legend-divider" />
-          <div className="map-legend-total">{offres.length} offres · {Object.keys(bySrc).length} sources</div>
+          <div className="map-legend-total">{candidatures.length} candidature{candidatures.length > 1 ? 's' : ''} · {Object.keys(byStat).length} statut{Object.keys(byStat).length > 1 ? 's' : ''}</div>
           <div className="map-legend-hint">Clique sur un marqueur pour filtrer</div>
         </div>
       </div>

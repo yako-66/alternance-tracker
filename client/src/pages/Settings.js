@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { api } from '../hooks/api';
 import './Settings.css';
 
 function get(k, def = '') { return localStorage.getItem(k) || def; }
@@ -12,7 +11,6 @@ export default function Settings() {
   const [saved,     setSaved]     = useState(false);
   const [accentColor, setAccentColor] = useState(get('accent_color', '#7C3AED'));
   const [toast,     setToast]     = useState('');
-  const [scraping,  setScraping]  = useState(false);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
@@ -39,23 +37,6 @@ export default function Settings() {
     showToast('🎨 Couleur réinitialisée');
   };
 
-  const forceScrape = async () => {
-    setScraping(true);
-    try {
-      await api.post('/api/scrape', {});
-      showToast('🔄 Scraping démarré (attendre ~30s)');
-    } catch { showToast('❌ Erreur lors du scraping'); }
-    setTimeout(() => setScraping(false), 5000);
-  };
-
-  const purgeOffres = async () => {
-    if (!window.confirm('Supprimer TOUTES les offres archivées ?\nLes favoris et offres actives sont conservés.')) return;
-    try {
-      await api.delete('/api/offres/archived').catch(() => {});
-      showToast('✅ Offres archivées supprimées');
-    } catch { showToast('❌ Erreur'); }
-  };
-
   return (
     <div className="settings-page">
       <h1 className="page-title">⚙️ Paramètres</h1>
@@ -80,30 +61,6 @@ export default function Settings() {
             <button className={`btn-settings-save ${saved ? 'saved' : ''}`} onClick={saveProfile}>
               {saved ? '✅ Enregistré !' : '💾 Sauvegarder'}
             </button>
-          </div>
-        </div>
-
-        {/* SCRAPING */}
-        <div className="settings-card">
-          <h2 className="settings-section-title">🔄 Scraping automatique</h2>
-          <div className="settings-actions">
-            <div className="settings-action-item">
-              <div>
-                <div className="settings-action-title">Lancer maintenant</div>
-                <div className="settings-action-desc">Force le scraping de toutes les sources (LBA, France Travail, HelloWork). Le cron tourne aussi automatiquement toutes les 6h.</div>
-              </div>
-              <button className="btn-settings-action btn-settings-action-green" onClick={forceScrape} disabled={scraping}>
-                {scraping ? '⏳ En cours…' : '🔄 Scraper'}
-              </button>
-            </div>
-            <div className="settings-info-box">
-              <strong>🔑 France Travail API</strong><br />
-              Pour activer France Travail, inscris-toi sur{' '}
-              <a href="https://francetravail.io" target="_blank" rel="noopener noreferrer">francetravail.io</a>{' '}
-              et ajoute ces variables d'environnement sur Render :<br />
-              <code>FRANCE_TRAVAIL_CLIENT_ID</code><br />
-              <code>FRANCE_TRAVAIL_CLIENT_SECRET</code>
-            </div>
           </div>
         </div>
 
@@ -136,6 +93,8 @@ export default function Settings() {
           <div className="shortcuts-grid">
             {[
               ['Ctrl+K', 'Recherche globale'],
+              ['N', 'Nouvelle candidature (page Candidatures)'],
+              ['/', 'Focus barre de recherche'],
               ['Échap', 'Fermer la recherche'],
             ].map(([key, desc]) => (
               <div className="shortcut-row" key={key}>

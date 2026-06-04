@@ -2,7 +2,6 @@ const express = require('express');
 const cors    = require('cors');
 const path    = require('path');
 const { getDb, query, run } = require('./database');
-const { startCron, runScrapers, getScrapeStatus } = require('./cron');
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
@@ -11,10 +10,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../client/build')));
 
-// ── Ping / keepalive ──────────────────────────────────────────────────────────
+// ── Ping ──────────────────────────────────────────────────────────────────────
 
 app.get('/api/ping', (req, res) => {
-  res.json({ ok: true, ts: Date.now(), ...getScrapeStatus() });
+  res.json({ ok: true, ts: Date.now() });
 });
 
 // ── Waitlist (landing page) ───────────────────────────────────────────────────
@@ -47,157 +46,77 @@ app.get('/api/waitlist', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── Offres — routes spécifiques AVANT /:id ───────────────────────────────────
+// ── Candidatures — stats (avant /:id) ────────────────────────────────────────
 
-app.get('/api/offres/stats', async (req, res) => {
+app.get('/api/candidatures/stats', async (req, res) => {
   try {
-    const total    = Number((await query('SELECT COUNT(*) as c FROM offres WHERE archived=0'))[0].c);
-    const favoris  = Number((await query('SELECT COUNT(*) as c FROM offres WHERE favori=1 AND archived=0'))[0].c);
-    const nouvelles = Number((await query('SELECT COUNT(*) as c FROM offres WHERE vu=0 AND archived=0'))[0].c);
-    const bySrc    = await query('SELECT source, COUNT(*) as count FROM offres WHERE archived=0 GROUP BY source ORDER BY count DESC');
-    const byLoc    = await query('SELECT localisation, COUNT(*) as count FROM offres WHERE archived=0 AND localisation!=\'\' GROUP BY localisation ORDER BY count DESC LIMIT 10');
-    const bySec    = await query('SELECT secteur, COUNT(*) as count FROM offres WHERE archived=0 AND secteur!=\'\' GROUP BY secteur ORDER BY count DESC LIMIT 10');
-    const recent   = await query('SELECT * FROM offres WHERE archived=0 ORDER BY score_match DESC, id DESC LIMIT 5');
-    const history  = await query('SELECT substr(created_at,1,10) as day, COUNT(*) as count FROM offres WHERE archived=0 GROUP BY day ORDER BY day DESC LIMIT 30');
-    res.json({ total, favoris, nouvelles, bySrc, byLoc, bySec, recent, history, ...getScrapeStatus() });
+    const total      = Number((await query('SELECT COUNT(*) as c FROM candidatures WHERE archived=0'))[0].c);
+    const byStatut   = await query('SELECT statut, COUNT(*) as count FROM candidatures WHERE archived=0 GROUP BY statut ORDER BY count DESC');
+    const byLoc      = await query('SELECT localisation, COUNT(*) as count FROM candidatures WHERE archived=0 AND localisation!=\'\' GROUP BY localisation ORDER BY count DESC LIMIT 10');
+    const bySec      = await query('SELECT secteur, COUNT(*) as count FROM candidatures WHERE archived=0 AND secteur!=\'\' GROUP BY secteur ORDER BY count DESC LIMIT 10');
+    const history    = await query('SELECT substr(created_at,1,10) as day, COUNT(*) as count FROM candidatures WHERE archived=0 GROUP BY day ORDER BY day DESC LIMIT 30');
+    const interviews = Number((await query('SELECT COUNT(*) as c FROM candidatures WHERE statut=\'Entretien\' AND archived=0'))[0].c);
+    const pending    = Number((await query('SELECT COUNT(*) as c FROM candidatures WHERE date_rappel!=\'\' AND date_rappel IS NOT NULL AND statut NOT IN (\'Refus\',\'Sans suite\') AND archived=0'))[0].c);
+    res.json({ total, byStatut, byLoc, bySec, history, interviews, pending });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/offres/import-url', async (req, res) => {
-  const { url } = req.body;
-  if (!url || !url.startsWith('http')) return res.status(400).json({ error: 'URL invalide' });
+// ── Candidatures — CRUD ───────────────────────────────────────────────────────
+
+app.get('/api/candidatures', async (req, res) => {
   try {
-    const ctrl = new AbortController();
-    const tid  = setTimeout(() => ctrl.abort(), 12000);
-    const r    = await fetch(url, {
-      signal: ctrl.signal,
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-    });
-    clearTimeout(tid);
-    let text = await r.text();
-    text = text
-      .replace(/<script[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[\s\S]*?<\/style>/gi, '')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 6000);
-    const key = process.env.GROQ_API_KEY;
-    if (!key) return res.status(503).json({ error: 'GROQ_API_KEY non configuré' });
-    const ai = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
-        max_tokens: 512,
-        messages: [
-          { role: 'system', content: 'Extrais les infos d\'une offre d\'emploi. Réponds UNIQUEMENT avec un JSON valide : {"titre":"","entreprise":"","localisation":"","salaire":"","secteur":"","description":"","date_publi":""}' },
-          { role: 'user', content: text },
-        ],
-      }),
-    });
-    if (!ai.ok) throw new Error(`Groq ${ai.status}`);
-    const aiData = await ai.json();
-    const raw    = aiData.choices[0].message.content;
-    const json   = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] || '{}');
-    res.json({ ...json, source_url: url, source: 'manual' });
-  } catch (e) {
-    res.status(503).json({ error: e.message.includes('aborted') ? 'Site inaccessible (timeout)' : e.message });
-  }
-});
-
-// ── Offres — CRUD ─────────────────────────────────────────────────────────────
-
-app.get('/api/offres', async (req, res) => {
-  const { q, source, favori, sort = 'date', limit = 200, offset = 0 } = req.query;
-  try {
-    const where = ['archived=0'];
-    const args  = [];
-
-    if (q) {
-      where.push('(titre LIKE ? OR entreprise LIKE ? OR localisation LIKE ? OR description LIKE ?)');
-      const like = `%${q}%`;
-      args.push(like, like, like, like);
-    }
-    if (source) { where.push('source=?'); args.push(source); }
-    if (favori === '1') where.push('favori=1');
-
-    const w = `WHERE ${where.join(' AND ')}`;
-    const orderMap = {
-      date:      'date_publi DESC, id DESC',
-      score:     'score_match DESC, date_publi DESC',
-      entreprise:'entreprise ASC',
-    };
-    const order = orderMap[sort] || orderMap.date;
-
-    const offres    = await query(`SELECT * FROM offres ${w} ORDER BY ${order} LIMIT ? OFFSET ?`, [...args, parseInt(limit), parseInt(offset)]);
-    const countRows = await query(`SELECT COUNT(*) as total FROM offres ${w}`, args);
-    res.json({ offres, total: Number(countRows[0]?.total || 0) });
+    const rows = await query('SELECT * FROM candidatures ORDER BY id DESC');
+    res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/offres/:id', async (req, res) => {
+app.post('/api/candidatures', async (req, res) => {
+  const { entreprise, poste, source, date_candidature, contact, statut, notes, localisation, priorite, score, date_entretien, tags, salaire, secteur, taille, date_rappel } = req.body;
+  if (!entreprise && !poste) return res.status(400).json({ error: 'Entreprise ou poste requis' });
   try {
-    const rows = await query('SELECT * FROM offres WHERE id=?', [parseInt(req.params.id)]);
-    if (!rows[0]) return res.status(404).json({ error: 'Offre introuvable' });
-    await run('UPDATE offres SET vu=1 WHERE id=?', [parseInt(req.params.id)]);
-    res.json(rows[0]);
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/api/offres', async (req, res) => {
-  const { titre, entreprise, localisation, secteur, salaire, source_url, description, date_publi, tags } = req.body;
-  if (!titre) return res.status(400).json({ error: 'Titre requis' });
-  try {
-    const source_id = `manual_${Date.now()}`;
-    const result    = await run(
-      `INSERT INTO offres (titre,entreprise,localisation,secteur,salaire,source,source_id,source_url,description,date_publi,tags)
-       VALUES (?,?,?,?,?,'manual',?,?,?,?,?)`,
-      [titre, entreprise || '', localisation || '', secteur || '', salaire || '',
-       source_id, source_url || '', description || '', date_publi || '', tags || '']
+    const result = await run(
+      `INSERT INTO candidatures (entreprise,poste,source,date_candidature,contact,statut,notes,localisation,priorite,score,date_entretien,tags,salaire,secteur,taille,date_rappel)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [entreprise||'', poste||'', source||'', date_candidature||'', contact||'', statut||'Postulé', notes||'', localisation||'', priorite||0, score||0, date_entretien||'', tags||'', salaire||'', secteur||'', taille||'', date_rappel||'']
     );
-    res.json((await query('SELECT * FROM offres WHERE id=?', [result.lastInsertRowid]))[0]);
+    res.json((await query('SELECT * FROM candidatures WHERE id=?', [result.lastInsertRowid]))[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/offres/:id', async (req, res) => {
-  const id      = parseInt(req.params.id);
-  const allowed = ['favori', 'archived', 'note', 'score_match', 'vu'];
+app.put('/api/candidatures/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+  const fields = ['entreprise','poste','source','date_candidature','contact','statut','notes','localisation','priorite','score','date_entretien','archived','tags','salaire','secteur','taille','date_rappel'];
   const updates = [], args = [];
-  for (const f of allowed) {
+  for (const f of fields) {
     if (req.body[f] !== undefined) { updates.push(`${f}=?`); args.push(req.body[f]); }
   }
   if (!updates.length) return res.status(400).json({ error: 'Aucun champ valide' });
   args.push(id);
   try {
-    await run(`UPDATE offres SET ${updates.join(',')} WHERE id=?`, args);
-    res.json((await query('SELECT * FROM offres WHERE id=?', [id]))[0]);
+    await run(`UPDATE candidatures SET ${updates.join(',')} WHERE id=?`, args);
+    res.json((await query('SELECT * FROM candidatures WHERE id=?', [id]))[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/offres/:id', async (req, res) => {
+app.delete('/api/candidatures/:id', async (req, res) => {
   try {
-    await run('DELETE FROM offres WHERE id=?', [parseInt(req.params.id)]);
+    await run('DELETE FROM candidatures WHERE id=?', [parseInt(req.params.id)]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── Scraping manuel ───────────────────────────────────────────────────────────
+// ── Échanges ──────────────────────────────────────────────────────────────────
 
-app.post('/api/scrape', (req, res) => {
-  runScrapers();
-  res.json({ message: 'Scraping démarré en arrière-plan' });
-});
-
-// ── Suppression par source ────────────────────────────────────────────────────
-
-app.delete('/api/offres/source/:source', async (req, res) => {
+app.post('/api/candidatures/:id/echanges', async (req, res) => {
+  const { type, contenu, date } = req.body;
   try {
-    await run('DELETE FROM offres WHERE source = ?', [req.params.source]);
-    res.json({ success: true });
+    const result = await run(
+      'INSERT INTO echanges (candidature_id,type,contenu,date) VALUES (?,?,?,?)',
+      [parseInt(req.params.id), type||'', contenu||'', date||'']
+    );
+    res.json({ id: result.lastInsertRowid, candidature_id: parseInt(req.params.id), type, contenu, date });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
-
 
 // ── SPA fallback ──────────────────────────────────────────────────────────────
 
@@ -208,7 +127,6 @@ app.get('*', (req, res) => {
 // ── Démarrage ─────────────────────────────────────────────────────────────────
 
 getDb().then(() => {
-  startCron();
   app.listen(PORT, () => {
     console.log(`🚀 Serveur sur http://localhost:${PORT}`);
     const selfUrl = process.env.RENDER_EXTERNAL_URL;

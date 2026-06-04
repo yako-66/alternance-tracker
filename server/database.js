@@ -7,26 +7,37 @@ const client = createClient({
 
 async function getDb() {
   await client.execute(`
-    CREATE TABLE IF NOT EXISTS offres (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      titre       TEXT NOT NULL,
-      entreprise  TEXT DEFAULT '',
-      localisation TEXT DEFAULT '',
-      secteur     TEXT DEFAULT '',
-      salaire     TEXT DEFAULT '',
-      source      TEXT DEFAULT '',
-      source_id   TEXT DEFAULT '',
-      source_url  TEXT DEFAULT '',
-      description TEXT DEFAULT '',
-      date_publi  TEXT DEFAULT '',
-      tags        TEXT DEFAULT '',
-      score_match INTEGER DEFAULT 0,
-      favori      INTEGER DEFAULT 0,
-      vu          INTEGER DEFAULT 0,
-      archived    INTEGER DEFAULT 0,
-      note        TEXT DEFAULT '',
-      created_at  TEXT DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE(source, source_id)
+    CREATE TABLE IF NOT EXISTS candidatures (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      entreprise       TEXT DEFAULT '',
+      poste            TEXT DEFAULT '',
+      source           TEXT DEFAULT '',
+      date_candidature TEXT DEFAULT '',
+      contact          TEXT DEFAULT '',
+      statut           TEXT DEFAULT 'Postulé',
+      notes            TEXT DEFAULT '',
+      localisation     TEXT DEFAULT '',
+      priorite         INTEGER DEFAULT 0,
+      score            INTEGER DEFAULT 0,
+      date_entretien   TEXT DEFAULT '',
+      archived         INTEGER DEFAULT 0,
+      tags             TEXT DEFAULT '',
+      salaire          TEXT DEFAULT '',
+      secteur          TEXT DEFAULT '',
+      taille           TEXT DEFAULT '',
+      date_rappel      TEXT DEFAULT '',
+      created_at       TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS echanges (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      candidature_id   INTEGER NOT NULL,
+      type             TEXT DEFAULT '',
+      contenu          TEXT DEFAULT '',
+      date             TEXT DEFAULT '',
+      created_at       TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
 

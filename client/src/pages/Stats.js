@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../hooks/api';
-import { SOURCE_COLORS, SOURCE_LABELS } from '../App';
 import './Stats.css';
 
 function useCountUp(target, dur = 800) {
@@ -41,7 +40,7 @@ function HistoryChart({ history }) {
       {sorted.map(h => {
         const pct = Math.round((Number(h.count) / max) * 100);
         return (
-          <div key={h.day} className="hist-col" title={`${h.day} : ${h.count} offres`}>
+          <div key={h.day} className="hist-col" title={`${h.day} : ${h.count} candidature${Number(h.count) > 1 ? 's' : ''}`}>
             <div className="hist-bar" style={{ height: `${Math.max(pct, 4)}%` }} />
             <div className="hist-label">{h.day.slice(5)}</div>
           </div>
@@ -51,21 +50,26 @@ function HistoryChart({ history }) {
   );
 }
 
+const STATUT_COLORS = {
+  'Postulé':'#4ecdc4','En attente':'#ff9f43','En attente de réponse':'#ffd93d',
+  'Entretien':'#00d4a0','Refus':'#ff6b6b','Sans suite':'#4a4a60'
+};
+
 export default function Stats() {
   const [stats,   setStats]   = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/api/offres/stats').then(s => { setStats(s); setLoading(false); }).catch(() => setLoading(false));
+    api.get('/api/candidatures/stats').then(s => { setStats(s); setLoading(false); }).catch(() => setLoading(false));
   }, []);
 
-  const total     = useCountUp(stats?.total    || 0);
-  const favoris   = useCountUp(stats?.favoris  || 0);
-  const nouvelles = useCountUp(stats?.nouvelles || 0);
+  const total      = useCountUp(stats?.total      || 0);
+  const interviews = useCountUp(stats?.interviews || 0);
+  const pending    = useCountUp(stats?.pending    || 0);
 
-  const maxSrc = stats?.bySrc ? Math.max(...stats.bySrc.map(s => Number(s.count)), 1) : 1;
-  const maxLoc = stats?.byLoc ? Math.max(...stats.byLoc.map(l => Number(l.count)), 1) : 1;
-  const maxSec = stats?.bySec ? Math.max(...stats.bySec.map(s => Number(s.count)), 1) : 1;
+  const maxStat = stats?.byStatut ? Math.max(...stats.byStatut.map(s => Number(s.count)), 1) : 1;
+  const maxLoc  = stats?.byLoc    ? Math.max(...stats.byLoc.map(l => Number(l.count)),    1) : 1;
+  const maxSec  = stats?.bySec    ? Math.max(...stats.bySec.map(s => Number(s.count)),    1) : 1;
 
   if (loading) return (
     <div className="stats-page">
@@ -75,40 +79,36 @@ export default function Stats() {
 
   return (
     <div className="stats-page">
-      {/* KPIs */}
       <div className="stats-kpi-row">
-        <div className="stats-kpi"><span className="stats-kpi-val">{total}</span><span className="stats-kpi-lbl">Offres total</span></div>
-        <div className="stats-kpi"><span className="stats-kpi-val" style={{ color: '#7c3aed' }}>{nouvelles}</span><span className="stats-kpi-lbl">Non lues</span></div>
-        <div className="stats-kpi"><span className="stats-kpi-val" style={{ color: '#e11d48' }}>{favoris}</span><span className="stats-kpi-lbl">Favoris</span></div>
-        <div className="stats-kpi"><span className="stats-kpi-val" style={{ color: '#16a34a' }}>{stats?.bySrc?.length || 0}</span><span className="stats-kpi-lbl">Sources</span></div>
+        <div className="stats-kpi"><span className="stats-kpi-val">{total}</span><span className="stats-kpi-lbl">Candidatures</span></div>
+        <div className="stats-kpi"><span className="stats-kpi-val" style={{ color: '#00d4a0' }}>{interviews}</span><span className="stats-kpi-lbl">Entretiens</span></div>
+        <div className="stats-kpi"><span className="stats-kpi-val" style={{ color: '#ff9f43' }}>{pending}</span><span className="stats-kpi-lbl">Relances</span></div>
+        <div className="stats-kpi"><span className="stats-kpi-val" style={{ color: '#2563eb' }}>{stats?.byLoc?.length || 0}</span><span className="stats-kpi-lbl">Villes</span></div>
       </div>
 
-      {/* Historique */}
       {stats?.history?.length > 0 && (
         <div className="stats-card">
-          <div className="stats-section-title">Offres ajoutées (14 derniers jours)</div>
+          <div className="stats-section-title">Candidatures (14 derniers jours)</div>
           <HistoryChart history={stats.history} />
         </div>
       )}
 
       <div className="stats-cols">
-        {/* Par source */}
-        {stats?.bySrc?.length > 0 && (
+        {stats?.byStatut?.length > 0 && (
           <div className="stats-card">
-            <div className="stats-section-title">Par source</div>
-            {stats.bySrc.map(s => (
+            <div className="stats-section-title">Par statut</div>
+            {stats.byStatut.map(s => (
               <HorizBar
-                key={s.source}
-                label={SOURCE_LABELS[s.source] || s.source}
+                key={s.statut}
+                label={s.statut}
                 count={Number(s.count)}
-                max={maxSrc}
-                color={SOURCE_COLORS[s.source] || '#666'}
+                max={maxStat}
+                color={STATUT_COLORS[s.statut] || '#888'}
               />
             ))}
           </div>
         )}
 
-        {/* Par ville */}
         {stats?.byLoc?.length > 0 && (
           <div className="stats-card">
             <div className="stats-section-title">Top villes</div>
@@ -124,7 +124,6 @@ export default function Stats() {
           </div>
         )}
 
-        {/* Par secteur */}
         {stats?.bySec?.length > 0 && (
           <div className="stats-card">
             <div className="stats-section-title">Top secteurs</div>
@@ -141,16 +140,8 @@ export default function Stats() {
         )}
       </div>
 
-      {/* Dernière MAJ */}
-      {stats?.lastScrapeAt && (
-        <div className="stats-footer">
-          Dernier scraping :{' '}
-          <strong>{new Date(stats.lastScrapeAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</strong>
-        </div>
-      )}
-
       {!stats?.total && (
-        <div className="stats-empty">Aucune donnée disponible. Lancer le scraping depuis la page Offres.</div>
+        <div className="stats-empty">Aucune donnée disponible. Ajoutez des candidatures pour voir les statistiques.</div>
       )}
     </div>
   );
