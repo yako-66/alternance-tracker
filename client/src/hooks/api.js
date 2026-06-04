@@ -8,10 +8,13 @@ async function req(url, opts = {}) {
   return data;
 }
 
-const CACHE_KEY = 'api_cache_v2';
+const CACHE_KEY = 'api_cache_v1';
 
 function getCached(path) {
-  try { return JSON.parse(localStorage.getItem(CACHE_KEY) || '{}')[path] ?? null; } catch { return null; }
+  try {
+    const store = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
+    return store[path] ?? null;
+  } catch { return null; }
 }
 
 function setCache(path, data) {
@@ -23,10 +26,13 @@ function setCache(path, data) {
 }
 
 export const api = {
-  get:    async (path) => { const d = await req(`${API}${path}`); setCache(path, d); return d; },
+  get: async (path) => {
+    const data = await req(`${API}${path}`);
+    setCache(path, data);
+    return data;
+  },
   getCached,
-  post:   (path, body) => req(`${API}${path}`, { method: 'POST',   headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
-  put:    (path, body) => req(`${API}${path}`, { method: 'PUT',    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
-  patch:  (path, body) => req(`${API}${path}`, { method: 'PATCH',  headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
+  post:   (path, body) => req(`${API}${path}`, { method: 'POST',   headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) }),
+  put:    (path, body) => req(`${API}${path}`, { method: 'PUT',    headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) }),
   delete: (path)       => req(`${API}${path}`, { method: 'DELETE' }),
 };

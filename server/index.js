@@ -226,6 +226,86 @@ app.post('/api/ai/import-url', async (req, res) => {
   }
 });
 
+// ── Backup / Restore / Reset ──────────────────────────────────────────────────
+
+app.get('/api/backup', async (req, res) => {
+  try {
+    const candidatures = await query('SELECT * FROM candidatures ORDER BY id ASC');
+    let echanges = [];
+    if (candidatures.length) {
+      const ph = candidatures.map(() => '?').join(',');
+      echanges = await query(`SELECT * FROM echanges WHERE candidature_id IN (${ph}) ORDER BY id ASC`, candidatures.map(c => c.id));
+    }
+    res.json({ candidatures, echanges, exportedAt: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/restore', async (req, res) => {
+  const { candidatures = [], echanges = [] } = req.body;
+  try {
+    const existing = await query('SELECT id FROM candidatures');
+    if (existing.length) {
+      const ph = existing.map(() => '?').join(',');
+      await run(`DELETE FROM echanges WHERE candidature_id IN (${ph})`, existing.map(c => c.id));
+    }
+    await run('DELETE FROM candidatures');
+    for (const c of candidatures) {
+      await run(
+        'INSERT INTO candidatures (entreprise,poste,source,date_candidature,contact,statut,notes,localisation,priorite,score,date_entretien,archived,tags,salaire,secteur,taille,date_rappel) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        [c.entreprise||'', c.poste||'', c.source||'', c.date_candidature||'', c.contact||'',
+         c.statut||'Postulé', c.notes||'', c.localisation||'', c.priorite||0, c.score||0,
+         c.date_entretien||'', c.archived||0, c.tags||'', c.salaire||'', c.secteur||'',
+         c.taille||'', c.date_rappel||'']
+      );
+    }
+    const newRows = await query('SELECT id FROM candidatures ORDER BY id ASC');
+    const oldIds  = candidatures.map(c => c.id);
+    for (const e of echanges) {
+      const idx = oldIds.indexOf(e.candidature_id);
+      const cid = idx >= 0 && newRows[idx] ? newRows[idx].id : e.candidature_id;
+      await run('INSERT INTO echanges (candidature_id,type,contenu,date) VALUES (?,?,?,?)', [cid, e.type||'', e.contenu||'', e.date||'']);
+    }
+    res.json({ success: true, candidatures: candidatures.length, echanges: echanges.length });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/reset', async (req, res) => {
+  try {
+    const ids = (await query('SELECT id FROM candidatures')).map(c => c.id);
+    if (ids.length) {
+      await run(`DELETE FROM echanges WHERE candidature_id IN (${ids.map(() => '?').join(',')})`, ids);
+    }
+    await run('DELETE FROM candidatures');
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Partage public ────────────────────────────────────────────────────────────
+
+const crypto = require('crypto');
+
+app.post('/api/share', async (req, res) => {
+  try {
+    const token = crypto.randomBytes(16).toString('hex');
+    await run('INSERT OR REPLACE INTO shares (token,created_at) VALUES (?,?)', [token, new Date().toISOString()]);
+    res.json({ token });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/share', async (req, res) => {
+  try { await run('DELETE FROM shares'); res.json({ success: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/public/:token', async (req, res) => {
+  try {
+    const share = (await query('SELECT * FROM shares WHERE token=?', [req.params.token]))[0];
+    if (!share) return res.status(404).json({ error: 'Lien invalide ou expiré' });
+    const candidatures = await query('SELECT * FROM candidatures WHERE archived=0 ORDER BY id DESC');
+    res.json({ candidatures });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── SPA fallback ──────────────────────────────────────────────────────────────
 
 app.get('*', (req, res) => {

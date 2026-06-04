@@ -59,6 +59,14 @@ async function getDb() {
   `);
 
   await client.execute(`
+    CREATE TABLE IF NOT EXISTS shares (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      token      TEXT UNIQUE NOT NULL,
+      created_at TEXT
+    )
+  `);
+
+  await client.execute(`
     CREATE TABLE IF NOT EXISTS waitlist (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
       name       TEXT,

@@ -183,16 +183,6 @@ code {
   body { background:white !important; }
 }
 
-.settings-info-box {
-  background: var(--bg); border-radius: 8px; padding: .75rem 1rem;
-  font-size: .8rem; color: var(--muted); line-height: 1.6; margin-top: .5rem;
-}
-.settings-info-box code {
-  display: block; font-family: monospace; background: var(--bg2);
-  padding: .2rem .4rem; border-radius: 4px; margin: .2rem 0; font-size: .78rem;
-}
-.settings-info-box a { color: var(--purple); }
-
 @media (max-width:768px) {
   .settings-grid { grid-template-columns:1fr; }
   .shortcuts-grid { grid-template-columns:1fr; }
