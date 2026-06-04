@@ -106,17 +106,124 @@ app.delete('/api/candidatures/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Stats ─────────────────────────────────────────────────────────────────────
+
+app.get('/api/stats', async (req, res) => {
+  try {
+    const total   = Number((await query('SELECT COUNT(*) as count FROM candidatures WHERE archived=0'))[0].count);
+    const byStatut = await query('SELECT statut, COUNT(*) as count FROM candidatures WHERE archived=0 GROUP BY statut ORDER BY count DESC');
+    const recent  = await query('SELECT * FROM candidatures WHERE archived=0 ORDER BY id DESC LIMIT 5');
+    res.json({ total, byStatut, recent });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Échanges ──────────────────────────────────────────────────────────────────
+
+app.get('/api/candidatures/:id/echanges', async (req, res) => {
+  try {
+    res.json(await query('SELECT * FROM echanges WHERE candidature_id=? ORDER BY id DESC', [parseInt(req.params.id)]));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 app.post('/api/candidatures/:id/echanges', async (req, res) => {
   const { type, contenu, date } = req.body;
   try {
     const result = await run(
       'INSERT INTO echanges (candidature_id,type,contenu,date) VALUES (?,?,?,?)',
-      [parseInt(req.params.id), type||'', contenu||'', date||'']
+      [parseInt(req.params.id), type||'', contenu||'', date||new Date().toISOString().split('T')[0]]
     );
-    res.json({ id: result.lastInsertRowid, candidature_id: parseInt(req.params.id), type, contenu, date });
+    res.json((await query('SELECT * FROM echanges WHERE id=?', [result.lastInsertRowid]))[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/echanges/:id', async (req, res) => {
+  try {
+    await run('DELETE FROM echanges WHERE id=?', [parseInt(req.params.id)]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── AI (Groq) ─────────────────────────────────────────────────────────────────
+
+async function callAI({ system, messages, max_tokens = 1024 }) {
+  const key = process.env.GROQ_API_KEY;
+  if (!key) throw new Error('GROQ_API_KEY non configuré');
+  const msgs = [...(system ? [{ role: 'system', content: system }] : []), ...messages];
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
+    body: JSON.stringify({ model: 'llama-3.1-8b-instant', messages: msgs, max_tokens }),
+  });
+  if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(`Groq ${res.status}: ${err?.error?.message || ''}`); }
+  return (await res.json()).choices[0].message.content;
+}
+
+app.post('/api/ai/coach', async (req, res) => {
+  const { messages, candidatures } = req.body;
+  const ctx = (candidatures||[]).slice(0,30).map(c => `- ${c.entreprise} (${c.poste||'?'}) : ${c.statut}, ${c.localisation||''}`).join('\n') || '(aucune)';
+  try {
+    const content = await callAI({
+      system: `Tu es un coach alternance. Candidatures de l'utilisateur :\n${ctx}\nRéponds en français, sois concis.`,
+      messages: (messages||[]).filter(m => m.role !== 'assistant' || messages.indexOf(m) > 0),
+    });
+    res.json({ content });
+  } catch (e) { res.status(503).json({ error: e.message }); }
+});
+
+app.post('/api/ai/parse', async (req, res) => {
+  const { text } = req.body;
+  try {
+    const content = await callAI({
+      system: 'Extrais les infos d\'une offre d\'emploi. Réponds UNIQUEMENT avec un JSON : {"entreprise":"","poste":"","localisation":"","salaire":"","secteur":"","description":"","date_publi":""}',
+      messages: [{ role: 'user', content: text }],
+    });
+    const json = JSON.parse(content.match(/\{[\s\S]*\}/)?.[0] || '{}');
+    res.json(json);
+  } catch (e) { res.status(503).json({ error: e.message }); }
+});
+
+app.post('/api/ai/cover-letter', async (req, res) => {
+  const { candidature } = req.body;
+  try {
+    const content = await callAI({
+      system: 'Tu es expert en rédaction de lettres de motivation pour alternances en France. Rédige une lettre professionnelle, personnalisée, en français (max 300 mots).',
+      messages: [{ role: 'user', content: `Entreprise: ${candidature?.entreprise}, Poste: ${candidature?.poste}, Notes: ${candidature?.notes||''}` }],
+      max_tokens: 700,
+    });
+    res.json({ content });
+  } catch (e) { res.status(503).json({ error: e.message }); }
+});
+
+app.post('/api/ai/interview', async (req, res) => {
+  const { candidature } = req.body;
+  try {
+    const content = await callAI({
+      system: 'Tu es coach entretien. Génère 5 questions d\'entretien avec conseils de réponse, pour un candidat en alternance.',
+      messages: [{ role: 'user', content: `Poste: ${candidature?.poste}, Entreprise: ${candidature?.entreprise}, Secteur: ${candidature?.secteur||''}` }],
+      max_tokens: 800,
+    });
+    res.json({ content });
+  } catch (e) { res.status(503).json({ error: e.message }); }
+});
+
+app.post('/api/ai/import-url', async (req, res) => {
+  const { url } = req.body;
+  if (!url || !url.startsWith('http')) return res.status(400).json({ error: 'URL invalide' });
+  try {
+    const ctrl = new AbortController();
+    const tid  = setTimeout(() => ctrl.abort(), 12000);
+    const r    = await fetch(url, { signal: ctrl.signal, headers: { 'User-Agent': 'Mozilla/5.0' } });
+    clearTimeout(tid);
+    let text = (await r.text()).replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0, 6000);
+    const content = await callAI({
+      system: 'Extrais les infos d\'une offre d\'emploi. Réponds UNIQUEMENT avec un JSON : {"entreprise":"","poste":"","localisation":"","salaire":"","secteur":"","description":""}',
+      messages: [{ role: 'user', content: text }],
+    });
+    const json = JSON.parse(content.match(/\{[\s\S]*\}/)?.[0] || '{}');
+    res.json({ ...json, source_url: url });
+  } catch (e) {
+    res.status(503).json({ error: e.message.includes('aborted') ? 'Site inaccessible (timeout)' : e.message });
+  }
 });
 
 // ── SPA fallback ──────────────────────────────────────────────────────────────

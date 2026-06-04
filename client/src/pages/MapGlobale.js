@@ -2,6 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../hooks/api';
 import './MapGlobale.css';
 
+const STATUT_COLORS = {
+  'Postulé':'#4ecdc4','En attente':'#ff9f43','En attente de réponse':'#ffd93d',
+  'Entretien':'#00d4a0','Refus':'#ff6b6b','Sans suite':'#4a4a60'
+};
+
 const geoCache = new Map();
 
 async function geocode(loc) {
@@ -9,56 +14,55 @@ async function geocode(loc) {
   const key = loc.trim();
   if (geoCache.has(key)) return geoCache.get(key);
   try {
-    const q = key.toLowerCase().includes('france') ? key : `${key}, France`;
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&accept-language=fr`);
+    // n'ajoute France que si pas déjà présent
+    const query = key.toLowerCase().includes('france') ? key : `${key}, France`;
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&accept-language=fr`
+    );
     if (!res.ok) { geoCache.set(key, null); return null; }
     const data = await res.json();
-    const r = data[0] ? { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) } : null;
-    geoCache.set(key, r);
-    return r;
+    const result = data[0] ? { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) } : null;
+    geoCache.set(key, result);
+    return result;
   } catch { return null; }
 }
 
-const STATUT_COLORS = {
-  'Postulé':'#4ecdc4','En attente':'#ff9f43','En attente de réponse':'#ffd93d',
-  'Entretien':'#00d4a0','Refus':'#ff6b6b','Sans suite':'#4a4a60'
-};
-
 export default function MapGlobale({ navigate }) {
-  const mapRef     = useRef(null);
+  const mapRef = useRef(null);
   const leafletMap = useRef(null);
-  const [candidatures, setCandidatures] = useState([]);
-  const [loading,  setLoading]  = useState(true);
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [geocoded, setGeocoded] = useState(0);
-  const [total,    setTotal]    = useState(0);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
-    api.get('/api/candidatures').then(d => setCandidatures(d || [])).catch(() => {});
+    api.get('/api/candidatures').then(setList);
   }, []);
 
   useEffect(() => {
-    if (!candidatures.length || !mapRef.current) return;
+    if (!list.length || !mapRef.current) return;
 
+    // Attend que Leaflet soit dispo (CDN)
     const init = () => {
       if (!window.L) { setTimeout(init, 100); return; }
       if (leafletMap.current) { leafletMap.current.remove(); }
 
-      const L   = window.L;
+      const L = window.L;
       const map = L.map(mapRef.current, { zoomControl: true, scrollWheelZoom: true });
       leafletMap.current = map;
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors', maxZoom: 18,
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 18,
       }).addTo(map);
 
-      map.setView([45.75, 4.85], 8);
+      map.setView([46.2, 2.2], 6);
 
       const byLoc = {};
-      candidatures.forEach(c => {
-        const loc = (c.localisation || '').split('(')[0].trim();
-        if (!loc) return;
-        if (!byLoc[loc]) byLoc[loc] = [];
-        byLoc[loc].push(c);
+      list.forEach(c => {
+        if (!c.localisation) return;
+        if (!byLoc[c.localisation]) byLoc[c.localisation] = [];
+        byLoc[c.localisation].push(c);
       });
 
       const locs = Object.keys(byLoc);
@@ -68,81 +72,96 @@ export default function MapGlobale({ navigate }) {
       const bounds = [];
       let done = 0;
 
-      (async () => {
+      const addMarkers = async () => {
         for (const loc of locs) {
           const coords = await geocode(loc);
-          await new Promise(r => setTimeout(r, 350));
+          await new Promise(r => setTimeout(r, 350)); // respecte 1 req/s Nominatim
           done++;
           setGeocoded(done);
           if (!coords) continue;
 
-          const items = byLoc[loc];
+          const cands = byLoc[loc];
           bounds.push([coords.lat, coords.lon]);
 
-          const statCounts = {};
-          items.forEach(c => { statCounts[c.statut] = (statCounts[c.statut] || 0) + 1; });
-          const domStat = Object.entries(statCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Postulé';
-          const color   = STATUT_COLORS[domStat] || '#7c3aed';
+          // Crée un marqueur custom coloré par statut dominant
+          const dominant = cands.sort((a,b) =>
+            ['Entretien','En attente de réponse','En attente','Postulé','Refus','Sans suite']
+              .indexOf(a.statut) - ['Entretien','En attente de réponse','En attente','Postulé','Refus','Sans suite'].indexOf(b.statut)
+          )[0].statut;
+          const color = STATUT_COLORS[dominant] || '#9a9aa8';
 
           const icon = L.divIcon({
             className: '',
-            html: `<div class="map-marker" style="background:${color};box-shadow:0 0 0 3px ${color}33,0 4px 12px rgba(0,0,0,.25)">${items.length}</div>`,
-            iconSize: [36, 36], iconAnchor: [18, 18],
+            html: `<div class="map-marker" style="background:${color};box-shadow:0 0 0 3px ${color}33,0 4px 12px rgba(0,0,0,0.25)">${cands.length}</div>`,
+            iconSize: [36, 36],
+            iconAnchor: [18, 18],
           });
 
-          const popupHtml = items.slice(0, 5).map(c => `
+          const popup = cands.map(c => `
             <div class="map-popup-item">
-              <strong>${c.entreprise || c.poste}</strong><br/>
-              <span style="color:${STATUT_COLORS[c.statut]||'#666'};font-size:11px;font-weight:600">${c.statut}</span>
-              <span style="font-size:11px;color:#888"> — ${(c.poste||'').slice(0, 50)}</span>
+              <strong>${c.entreprise}</strong><br/>
+              <span style="color:${STATUT_COLORS[c.statut]};font-size:11px;font-weight:600">${c.statut}</span>
+              ${c.poste ? `<br/><span style="font-size:11px;color:#666">${c.poste}</span>` : ''}
             </div>
-          `).join('<hr style="margin:5px 0;border-color:#eee"/>');
-
-          const more = items.length > 5 ? `<div style="font-size:11px;color:#888;margin-top:6px">+${items.length - 5} autres</div>` : '';
+          `).join('<hr style="margin:6px 0;border-color:#eee"/>');
 
           L.marker([coords.lat, coords.lon], { icon })
             .addTo(map)
-            .bindPopup(`<div class="map-popup"><div class="map-popup-loc">📍 ${loc} · ${items.length} candidature${items.length > 1 ? 's' : ''}</div>${popupHtml}${more}</div>`, { maxWidth: 280 })
-            .on('click', () => navigate('candidatures'));
+            .bindPopup(`<div class="map-popup"><div class="map-popup-loc">📍 ${loc} · ${cands.length} candidature${cands.length>1?'s':''}</div>${popup}</div>`, { maxWidth: 260 });
         }
 
         setLoading(false);
-        if (bounds.length) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 11 });
-      })();
+        if (bounds.length > 0) {
+          map.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 });
+        }
+      };
+
+      addMarkers();
     };
 
     init();
     return () => { if (leafletMap.current) { leafletMap.current.remove(); leafletMap.current = null; } };
-  }, [candidatures]);
+  }, [list]);
 
-  const byStat = {};
-  candidatures.forEach(c => { byStat[c.statut] = (byStat[c.statut] || 0) + 1; });
+  const byStatut = {};
+  list.forEach(c => { byStatut[c.statut] = (byStatut[c.statut] || 0) + 1; });
 
   return (
     <div className="map-globale-page">
       <h1 className="page-title">🗺️ Carte des candidatures</h1>
 
-      {loading && candidatures.length > 0 && (
+      {!loading && list.length > 0 && list.filter(c => c.localisation).length === 0 && (
+        <div className="map-no-data">
+          📍 Aucune candidature avec une localisation.<br/>
+          <span>Renseigne la ville dans tes candidatures pour les voir sur la carte.</span>
+        </div>
+      )}
+
+      {loading && list.length > 0 && (
         <div className="map-loading-bar">
-          <div className="map-loading-fill" style={{ width: `${total ? (geocoded / total) * 100 : 0}%` }} />
+          <div className="map-loading-fill" style={{width:`${total ? (geocoded/total)*100 : 0}%`}} />
           <span className="map-loading-label">Géolocalisation… {geocoded}/{total}</span>
         </div>
       )}
 
       <div className="map-globale-layout">
         <div ref={mapRef} className="map-globale-container" />
+
         <div className="map-globale-legend">
-          <div className="map-legend-title">Statuts</div>
-          {Object.entries(byStat).map(([stat, count]) => (
-            <div className="map-legend-item" key={stat}>
-              <div className="map-legend-dot" style={{ background: STATUT_COLORS[stat] || '#666' }} />
-              <span className="map-legend-label">{stat}</span>
-              <span className="map-legend-count" style={{ color: STATUT_COLORS[stat] || '#666' }}>{count}</span>
-            </div>
-          ))}
+          <div className="map-legend-title">Légende</div>
+          {Object.entries(STATUT_COLORS).map(([statut, color]) => {
+            const count = byStatut[statut] || 0;
+            return (
+              <div className="map-legend-item" key={statut}>
+                <div className="map-legend-dot" style={{background:color}} />
+                <span className="map-legend-label">{statut}</span>
+                <span className="map-legend-count" style={{color}}>{count}</span>
+              </div>
+            );
+          })}
           <div className="map-legend-divider" />
-          <div className="map-legend-total">{candidatures.length} candidature{candidatures.length > 1 ? 's' : ''} · {Object.keys(byStat).length} statut{Object.keys(byStat).length > 1 ? 's' : ''}</div>
-          <div className="map-legend-hint">Clique sur un marqueur pour filtrer</div>
+          <div className="map-legend-total">{list.length} candidatures · {Object.keys(byStatut).length ? Object.values(byStatut).reduce((a,b)=>a+b,0) : 0} villes</div>
+          <div className="map-legend-hint">Clique sur un marqueur pour voir les candidatures</div>
         </div>
       </div>
     </div>
